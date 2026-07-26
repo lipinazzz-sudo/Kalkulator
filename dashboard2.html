@@ -158,8 +158,8 @@
                 <input type="number" id="targetMultiplier" placeholder="Contoh: 50" min="1">
             </div>
             <div class="form-group">
-                <label for="minTotalCost">Target Total Minimum / BD</label>
-                <input type="number" id="minTotalCost" placeholder="Contoh: 450 (Agar BD tidak terlalu kecil)" min="0" value="400">
+                <label for="minPairs">Target Minimum Pasangan / BD</label>
+                <input type="number" id="minPairs" placeholder="Contoh: 10 (Agar BD tidak dapat terlalu sedikit angka)" min="0" value="10">
             </div>
             <div class="form-group">
                 <label for="mathRule">Aturan</label>
@@ -188,7 +188,7 @@
     <div class="people-config-container">
         <div class="config-header">SETTING KAPASITAS BD</div>
         <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: -10px; margin-bottom: 15px;">
-            *Default terisi otomatis: Max Pasang (25) & Max X (30). Jika punya BB 6 digit, ubah Max Pasang ke 30.
+            *Default terisi otomatis: Max Pasang (25) & Max X (30). Jika punya kombinasi BB besar (contoh 5 digit = 20 line), sesuaikan kapasitas Max Pasang agar muat.
         </div>
         <div id="peopleConfigList" class="layout-bds"></div>
     </div>
@@ -229,7 +229,7 @@
             row.className = 'person-row';
             row.innerHTML = 
                 '<div class="person-label">BD ' + i + '</div>' +
-                '<input type="number" id="maxBlocks_' + i + '" value="25" placeholder="Max Pasang" min="1" style="flex:1;" title="Maksimal Pasang Angka">' +
+                '<input type="number" id="maxBlocks_' + i + '" value="25" placeholder="Max Pasang" min="1" style="flex:1;" title="Maksimal Pasangan Angka">' +
                 '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1" style="flex:1;" title="Maksimal X">';
             container.appendChild(row);
         }
@@ -267,7 +267,8 @@
         return result;
     }
 
-    function runSimulation(chunks, bdsTemplate, targetX, targetMinCost, mathRule) {
+    // Ubah targetMinCost -> targetMinPairs
+    function runSimulation(chunks, bdsTemplate, targetX, targetMinPairs, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
         }));
@@ -282,8 +283,8 @@
             let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
             if (eligibleBDs.length > 0) {
-                // Sorting BDs secara acak namun dengan prioritas memberi pada BD yang total biayanya (cost) masih kecil
-                let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentCost + Math.random()*200) - (b.currentCost + Math.random()*200));
+                // Sorting BDs secara acak namun dengan prioritas memberi pada BD yang TOTAL PASANGAN (bukan cost) masih kecil
+                let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentPairs + Math.random()*10) - (b.currentPairs + Math.random()*10));
                 let allocation = new Map();
                 shuffledBDs.forEach(bd => allocation.set(bd.id, 0));
 
@@ -345,8 +346,8 @@
         var targetX = parseInt(document.getElementById('targetMultiplier').value);
         if (isNaN(targetX) || targetX <= 0) { alert('Isi Total Perkalian terlebih dahulu!'); return; }
         
-        var minTotalInput = parseInt(document.getElementById('minTotalCost').value);
-        var targetMinCost = isNaN(minTotalInput) || minTotalInput < 0 ? 0 : minTotalInput;
+        var minPairsInput = parseInt(document.getElementById('minPairs').value);
+        var targetMinPairs = isNaN(minPairsInput) || minPairsInput < 0 ? 0 : minPairsInput;
 
         var personCount = parseInt(document.getElementById('personCount').value);
         var mathRule = parseInt(document.getElementById('mathRule').value);
@@ -384,11 +385,9 @@
             }
         }
         
-        // Ekstrak dari yang terbesar
-        extractBB(6); 
+        // HANYA EKSTRAKSI BB 5 dan 4 (Berdasarkan Request)
         extractBB(5); 
         extractBB(4); 
-        extractBB(3); 
 
         var remainingPairs = Array.from(pairSet);
         var visited = new Set();
@@ -414,21 +413,19 @@
         let lowestScore = Infinity;
 
         for (let sim = 0; sim < 500; sim++) {
-            let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinCost, mathRule);
+            let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinPairs, mathRule);
             
             // Evaluasi Skor Fitness: 
-            // 1. Sisa Angka (Paling Fatal)
-            // 2. Jumlah BD yang belum memenuhi Total Minimum
-            // 3. Jarak selisih (Variance) antar BD terbesar dan terkecil
+            // Menggunakan patokan minimum pasangan (currentPairs) bukan total harga
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
             let variance = 0;
             let belowMinCount = 0;
             
             if (activeBDs.length > 0) {
-                let maxCost = Math.max(...activeBDs.map(b => b.currentCost));
-                let minCost = Math.min(...activeBDs.map(b => b.currentCost));
-                variance = maxCost - minCost;
-                belowMinCount = activeBDs.filter(b => b.currentCost < targetMinCost).length;
+                let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
+                let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
+                variance = maxPairs - minPairs;
+                belowMinCount = activeBDs.filter(b => b.currentPairs < targetMinPairs).length;
             }
 
             let score = (currentRun.missingTotal * 1000000) + (belowMinCount * 10000) + variance;
@@ -437,7 +434,6 @@
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            // Jika sudah mencapai kesempurnaan mutlak (0 sisa, 0 dibawah minimum, variance kecil sekali)
             if (score === 0) break; 
         }
 
@@ -463,7 +459,7 @@
                 });
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
-                var isUnderMinimum = bd.currentCost < targetMinCost;
+                var isUnderMinimum = bd.currentPairs < targetMinPairs;
                 var totalColor = isUnderMinimum ? "#ff9800" : "var(--neon-green)";
 
                 var copyLines = [];
@@ -471,7 +467,10 @@
                 for (var xKey in normalGroupedByX) {
                     copyLines.push(normalGroupedByX[xKey].join('.') + 'x' + xKey);
                 }
+                
+                // Menambahkan Total (Diskon 29%) pada hasil copy
                 var finalCopyString = copyLines.join('\n'); 
+                finalCopyString += '\n\nTotal -29%: ' + totalCostDiskon.toFixed(2);
 
                 var bdId = 'btn_copy_bd_' + bd.id;
                 var html = `
@@ -548,13 +547,17 @@
                     </div>`;
             }
 
+            // Menambahkan Total (Diskon 29%) pada hasil copy sisa angka
+            var finalLeftoverCopyString = leftoverCopyLines.join('\n');
+            finalLeftoverCopyString += '\n\nTotal Sisa (-29%): ' + totalLeftoverDiskon.toFixed(2);
+
             leftoverHtml += `</div>`;
             resultsDiv.innerHTML += leftoverHtml;
 
             setTimeout(() => {
                 var btnSisa = document.getElementById('btn_copy_leftover');
                 if (btnSisa) {
-                    btnSisa.setAttribute('data-copy', leftoverCopyLines.join('\n'));
+                    btnSisa.setAttribute('data-copy', finalLeftoverCopyString);
                     btnSisa.onclick = function() { copyText('btn_copy_leftover'); };
                 }
             }, 50);
@@ -575,3 +578,4 @@
 
 </body>
 </html>
+
