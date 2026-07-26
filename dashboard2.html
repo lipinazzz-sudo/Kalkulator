@@ -158,8 +158,8 @@
                 <input type="number" id="targetMultiplier" placeholder="Contoh: 50" min="1">
             </div>
             <div class="form-group">
-                <label for="minPairs">Target Minimum Pasangan / BD</label>
-                <input type="number" id="minPairs" placeholder="Contoh: 10 (Agar BD tidak dapat terlalu sedikit angka)" min="0" value="10">
+                <label for="minXPerSplit">Target Minimum X (Taruhan) per Angka</label>
+                <input type="number" id="minXPerSplit" placeholder="Contoh: 15 (Agar tidak ada x2, x8, dll)" min="1" value="15">
             </div>
             <div class="form-group">
                 <label for="mathRule">Aturan</label>
@@ -174,9 +174,9 @@
                     <option value="1">1 BD</option>
                     <option value="2">2 BD</option>
                     <option value="3">3 BD</option>
-                    <option value="4">4 BD</option>
+                    <option value="4" selected>4 BD</option>
                     <option value="5">5 BD</option>
-                    <option value="6" selected>6 BD</option>
+                    <option value="6">6 BD</option>
                     <option value="7">7 BD</option>
                     <option value="8">8 BD</option>
                     <option value="10">10 BD</option>
@@ -229,7 +229,7 @@
             row.className = 'person-row';
             row.innerHTML = 
                 '<div class="person-label">BD ' + i + '</div>' +
-                '<input type="number" id="maxBlocks_' + i + '" value="25" placeholder="Max Pasang" min="1" style="flex:1;" title="Maksimal Pasangan Angka">' +
+                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Pasang" min="1" style="flex:1;" title="Maksimal Pasangan Angka">' +
                 '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1" style="flex:1;" title="Maksimal X">';
             container.appendChild(row);
         }
@@ -267,8 +267,8 @@
         return result;
     }
 
-    // Ubah targetMinCost -> targetMinPairs
-    function runSimulation(chunks, bdsTemplate, targetX, targetMinPairs, mathRule) {
+    // ALGORITMA BARU: Memecah X dengan batasan MINIMUM
+    function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
         }));
@@ -283,55 +283,78 @@
             let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
             if (eligibleBDs.length > 0) {
-                // Sorting BDs secara acak namun dengan prioritas memberi pada BD yang TOTAL PASANGAN (bukan cost) masih kecil
-                let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentPairs + Math.random()*10) - (b.currentPairs + Math.random()*10));
+                // Utamakan BD yang masih sepi pasangan (agar rata)
+                let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5));
                 let allocation = new Map();
-                shuffledBDs.forEach(bd => allocation.set(bd.id, 0));
+                
+                let remaining = reqX;
+                let minTake = Math.max(step, targetMinX);
+                minTake = Math.ceil(minTake / step) * step;
 
                 for (let i = 0; i < shuffledBDs.length; i++) {
                     let bd = shuffledBDs[i];
-                    if (reqX < step) break;
+                    if (remaining <= 0) break;
 
-                    let maxAvail = Math.min(reqX, bd.maxX);
-                    maxAvail = Math.floor(maxAvail / step) * step;
+                    let spaceLeft = bd.maxX; 
+                    let maxTake = Math.min(remaining, spaceLeft);
+                    maxTake = Math.floor(maxTake / step) * step;
 
-                    if (maxAvail >= step) {
-                        let possibleSteps = Math.floor(maxAvail / step);
-                        let randSteps = Math.floor(Math.random() * possibleSteps) + 1;
-                        let takeX = randSteps * step;
+                    if (maxTake < minTake) continue; // Skip jika BD ini tidak bisa menampung minimum nilai X
+
+                    // Cari pecahan yang valid (tidak menyisakan sisa X nanggung)
+                    let possibleTakes = [];
+                    for (let t = minTake; t <= maxTake; t += step) {
+                        let rem = remaining - t;
+                        if (rem === 0 || rem >= minTake) {
+                            possibleTakes.push(t);
+                        }
+                    }
+
+                    if (possibleTakes.length > 0) {
+                        // Ambil pecahan valid secara acak
+                        let takeX = possibleTakes[Math.floor(Math.random() * possibleTakes.length)];
                         allocation.set(bd.id, takeX);
-                        reqX -= takeX;
+                        remaining -= takeX;
+                    } else if (remaining === maxTake) {
+                        // Jika tersudut, ambil penuh sisa yang ada
+                        allocation.set(bd.id, maxTake);
+                        remaining -= maxTake;
                     }
                 }
 
-                if (reqX >= step) {
+                // Fallback: Jika masih ada sisa X yang tidak bisa dibagi rata dengan minimum X
+                if (remaining >= step) {
                     for (let i = 0; i < eligibleBDs.length; i++) {
                         let bd = eligibleBDs[i];
-                        if (reqX < step) break;
-                        let currentAlloc = allocation.get(bd.id);
+                        if (remaining < step) break;
+                        let currentAlloc = allocation.get(bd.id) || 0;
                         let spaceLeft = bd.maxX - currentAlloc;
-                        let maxTake = Math.min(reqX, spaceLeft);
+                        let maxTake = Math.min(remaining, spaceLeft);
                         maxTake = Math.floor(maxTake / step) * step;
-                        
                         if (maxTake >= step) {
                             allocation.set(bd.id, currentAlloc + maxTake);
-                            reqX -= maxTake;
+                            remaining -= maxTake;
                         }
                     }
                 }
 
+                // Terapkan hasil pecahan ke BD
                 for (let i = 0; i < eligibleBDs.length; i++) {
                     let bd = eligibleBDs[i];
-                    let allocX = allocation.get(bd.id);
+                    let allocX = allocation.get(bd.id) || 0;
                     if (allocX > 0) {
                         bd.blocks.push({ chunkData: chunk, xVal: allocX });
                         bd.currentPairs += chunk.pairsArray.length;
-                        bd.currentCost += (chunk.pairsArray.length * allocX); // Catat cost
+                        bd.currentCost += (chunk.pairsArray.length * allocX); 
                     }
                 }
-            }
+                
+                if (remaining > 0) {
+                    leftovers.push({ chunkData: chunk, missing: remaining });
+                    missingTotal += remaining;
+                }
 
-            if (reqX > 0) {
+            } else {
                 leftovers.push({ chunkData: chunk, missing: reqX });
                 missingTotal += reqX;
             }
@@ -346,8 +369,8 @@
         var targetX = parseInt(document.getElementById('targetMultiplier').value);
         if (isNaN(targetX) || targetX <= 0) { alert('Isi Total Perkalian terlebih dahulu!'); return; }
         
-        var minPairsInput = parseInt(document.getElementById('minPairs').value);
-        var targetMinPairs = isNaN(minPairsInput) || minPairsInput < 0 ? 0 : minPairsInput;
+        var minXInput = parseInt(document.getElementById('minXPerSplit').value);
+        var targetMinX = isNaN(minXInput) || minXInput < 1 ? 1 : minXInput;
 
         var personCount = parseInt(document.getElementById('personCount').value);
         var mathRule = parseInt(document.getElementById('mathRule').value);
@@ -385,7 +408,7 @@
             }
         }
         
-        // HANYA EKSTRAKSI BB 5 dan 4 (Berdasarkan Request)
+        // HANYA EKSTRAKSI BB 5 dan 4
         extractBB(5); 
         extractBB(4); 
 
@@ -413,22 +436,28 @@
         let lowestScore = Infinity;
 
         for (let sim = 0; sim < 500; sim++) {
-            let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinPairs, mathRule);
+            let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
             
-            // Evaluasi Skor Fitness: 
-            // Menggunakan patokan minimum pasangan (currentPairs) bukan total harga
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
             let variance = 0;
-            let belowMinCount = 0;
+            let badSplitsPenalty = 0;
             
             if (activeBDs.length > 0) {
                 let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
                 let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
                 variance = maxPairs - minPairs;
-                belowMinCount = activeBDs.filter(b => b.currentPairs < targetMinPairs).length;
             }
 
-            let score = (currentRun.missingTotal * 1000000) + (belowMinCount * 10000) + variance;
+            // Hukuman berat jika ada sistem pecahan yang terpaksa membagi X di bawah target (karena sisa/mentok)
+            currentRun.bds.forEach(bd => {
+                bd.blocks.forEach(bl => {
+                    if (bl.xVal < targetMinX && targetX >= targetMinX) {
+                        badSplitsPenalty += (targetMinX - bl.xVal) * 10000; 
+                    }
+                });
+            });
+
+            let score = (currentRun.missingTotal * 1000000) + badSplitsPenalty + variance;
 
             if (score < lowestScore) {
                 lowestScore = score;
@@ -459,16 +488,12 @@
                 });
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
-                var isUnderMinimum = bd.currentPairs < targetMinPairs;
-                var totalColor = isUnderMinimum ? "#ff9800" : "var(--neon-green)";
-
                 var copyLines = [];
                 copyLines.push(...bbLines);
                 for (var xKey in normalGroupedByX) {
                     copyLines.push(normalGroupedByX[xKey].join('.') + 'x' + xKey);
                 }
                 
-                // Menambahkan Total (Diskon 29%) pada hasil copy
                 var finalCopyString = copyLines.join('\n'); 
                 finalCopyString += '\n\nTotal -29%: ' + totalCostDiskon.toFixed(2);
 
@@ -478,7 +503,7 @@
                         <div class="header-result">
                             <div class="title-box">
                                 <div class="person-title">BD ${bd.id} <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Pasang)</span></div>
-                                <div class="total-box">Total: ${bd.currentCost} | -29%: <span style="color:${totalColor}">${totalCostDiskon.toFixed(2)}</span></div>
+                                <div class="total-box">Total: ${bd.currentCost} | -29%: <span style="color:var(--neon-green)">${totalCostDiskon.toFixed(2)}</span></div>
                             </div>
                             <button id="${bdId}" data-copy="${finalCopyString}" onclick="copyText('${bdId}')" class="btn-copy">📋 COPY</button>
                         </div>`;
@@ -547,7 +572,6 @@
                     </div>`;
             }
 
-            // Menambahkan Total (Diskon 29%) pada hasil copy sisa angka
             var finalLeftoverCopyString = leftoverCopyLines.join('\n');
             finalLeftoverCopyString += '\n\nTotal Sisa (-29%): ' + totalLeftoverDiskon.toFixed(2);
 
@@ -566,7 +590,7 @@
         if (hasError) {
             resultsDiv.innerHTML += `<div class="status-bar status-error">⚠️ SIMULASI SELESAI: Masih ada sisa angka yang tidak muat ke BD manapun</div>`;
         } else {
-            resultsDiv.innerHTML += `<div class="status-bar status-success">✅ SIMULASI SEMPURNA: Distribusi rata dan tanpa sisa!</div>`;
+            resultsDiv.innerHTML += `<div class="status-bar status-success">✅ SIMULASI SEMPURNA: Distribusi rata dan sesuai batasan!</div>`;
         }
     }
 
@@ -578,4 +602,3 @@
 
 </body>
 </html>
-
