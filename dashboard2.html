@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Meta tag untuk mendukung PWA -->
+    <meta name="theme-color" content="#0b0f19">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Splitter Pro">
+    <!-- Icon Default (SVG Base64) agar bisa di-install -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzBiMGYxOSIvPjx0ZXh0IHg9IjUwIiB5PSI2NCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzNiODJmNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1A8L3RleHQ+PC9zdmc+">
+    
     <title>Splitter Pro - Premium Edition</title>
     <style>
         :root {
-            --bg-main: #0b0f19;       /* Dark slate biru premium */
-            --bg-container: #151f32;  /* Kontainer sedikit lebih terang */
-            --text-color: #f8fafc;     /* Putih pudar agar nyaman di mata */
-            --text-muted: #94a3b8;     /* Abu-abu kebiruan untuk label */
-            --border-color: #24324d;   /* Border tipis kebiruan */
-            --input-bg: #1d293e;       /* Background input yang kontras */
-            --button-color: #3b82f6;   /* Biru modern */
+            --bg-main: #0b0f19;       
+            --bg-container: #151f32; 
+            --text-color: #f8fafc;     
+            --text-muted: #94a3b8;     
+            --border-color: #24324d;   
+            --input-bg: #1d293e;       
+            --button-color: #3b82f6;   
             --button-hover: #2563eb;
-            --accent-green: #34d399;   /* Hijau untuk teks sukses/highlight */
-            --danger-color: #ef4444;   /* Merah untuk sisa/error */
+            --accent-green: #34d399;   
+            --danger-color: #ef4444;   
+            --wa-color: #25D366;       
         }
         
         body {
@@ -27,7 +36,6 @@
             min-height: 100vh;
         }
 
-        /* Tata Letak Kiri Kanan */
         .layout-wrapper {
             display: grid;
             grid-template-columns: 350px 1fr;
@@ -64,7 +72,6 @@
             margin-bottom: 25px;
             font-size: 22px;
             font-weight: 600;
-            letter-spacing: 0.5px;
         }
         h1 span { color: var(--button-color); }
 
@@ -83,10 +90,10 @@
             width: 100%;
             padding: 12px;
             border: 1px solid var(--border-color);
-            border-radius: 8px;       
+            border-radius: 8px;        
             box-sizing: border-box;
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 16px; /* Mencegah auto-zoom di iOS */
+            font-size: 16px; 
             background-color: var(--input-bg);
             color: var(--text-color);
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -123,7 +130,16 @@
             display: flex; gap: 8px; align-items: center; padding: 10px; 
             background: var(--bg-container); border-radius: 6px; border: 1px solid var(--border-color);
         }
-        .person-label { width: 45px; font-weight: 600; color: var(--button-color); font-size: 14px; }
+        
+        /* Input khusus untuk mengedit nama BD */
+        .person-name-input {
+            width: 85px; 
+            padding: 8px 5px; 
+            font-weight: bold; 
+            color: var(--button-color); 
+            background-color: var(--bg-main); 
+            text-align: center;
+        }
 
         button.btn-execute {
             background-color: var(--button-color);
@@ -137,11 +153,31 @@
             width: 100%;
             transition: all 0.2s ease;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         button.btn-execute:hover { background-color: var(--button-hover); transform: translateY(-1px); }
         button.btn-execute:active { transform: translateY(1px); }
+
+        .btn-wa {
+            background-color: var(--wa-color);
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+        }
+        .btn-wa:hover { background-color: #128C7E; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(37, 211, 102, 0.4); }
 
         .layout-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; }
 
@@ -151,10 +187,7 @@
             padding: 18px;
             border-radius: 8px;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            border-left: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
+            border: 1px solid var(--border-color);
         }
         .leftover-section { border-top: 3px solid var(--danger-color); }
         
@@ -165,18 +198,6 @@
         .total-box span { color: var(--accent-green); font-weight: bold; }
         .total-box span.danger { color: var(--danger-color); }
         
-        button.btn-copy {
-            background-color: #1e293b;
-            color: white;
-            border: 1px solid var(--border-color);
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: bold;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button.btn-copy:hover { background-color: #334155; }
         button.btn-paste {
             background-color: transparent; border: 1px solid var(--button-color); color: var(--button-color);
             padding: 4px 10px; font-size: 12px; border-radius: 6px; cursor: pointer; font-weight: 600;
@@ -196,7 +217,7 @@
 
         .status-bar {
             padding: 14px; text-align: center; font-weight: 600; font-size: 14px; border-radius: 8px;
-            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; width: 100%; box-sizing: border-box;
+            margin-bottom: 15px; text-transform: uppercase; letter-spacing: 0.5px; width: 100%; box-sizing: border-box;
         }
         .status-success { background-color: rgba(52, 211, 153, 0.1); color: var(--accent-green); border: 1px solid var(--accent-green); }
         .status-error { background-color: rgba(239, 68, 68, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
@@ -219,7 +240,7 @@
             .sidebar-left { position: relative; top: 0; max-height: none; overflow-y: visible; margin-bottom: 20px; }
         }
         @media (min-width: 851px) {
-            .floating-nav { display: none; } /* Sembunyikan navigasi di layar lebar */
+            .floating-nav { display: none; }
         }
     </style>
 </head>
@@ -267,7 +288,7 @@
         </div>
 
         <div class="people-config-container">
-            <div class="config-header">KAPASITAS BD</div>
+            <div class="config-header">KAPASITAS & NAMA BD</div>
             <div id="peopleConfigList" class="layout-bds"></div>
         </div>
 
@@ -276,6 +297,8 @@
 
     <div class="main-content">
         <div id="statusContainer"></div>
+        <!-- Tombol Kirim WhatsApp Global (Tersembunyi sampai ada hasil) -->
+        <button id="btnSendWA" class="btn-wa" style="display: none;" onclick="kirimSemuaKeWA()">📱 KIRIM SEMUA VIA WHATSAPP</button>
         <div id="results" class="layout-results"></div>
     </div>
 </div>
@@ -286,6 +309,9 @@
 </div>
 
 <script>
+    // Variabel Global untuk menyimpan teks WhatsApp
+    let globalWaText = "";
+
     async function pasteText() {
         try {
             const text = await navigator.clipboard.readText();
@@ -311,29 +337,19 @@
             var row = document.createElement('div');
             row.className = 'person-row';
             row.innerHTML = 
-                '<div class="person-label">BD ' + i + '</div>' +
+                '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
                 '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Line" min="1">' +
                 '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1">';
             container.appendChild(row);
         }
     }
 
-    function copyText(elementId) {
-        var button = document.getElementById(elementId);
-        var textToCopy = button.getAttribute('data-copy');
-        navigator.clipboard.writeText(textToCopy).then(function() {
-            var originalText = button.innerHTML;
-            button.innerHTML = "✅ TERSALIN";
-            button.style.backgroundColor = "var(--accent-green)";
-            button.style.color = "#000";
-            button.style.borderColor = "var(--accent-green)";
-            setTimeout(function() {
-                button.innerHTML = originalText;
-                button.style.backgroundColor = "#1e293b";
-                button.style.color = "white";
-                button.style.borderColor = "var(--border-color)";
-            }, 1500);
-        }).catch(function() { alert('Gagal meng-copy.'); });
+    // Fungsi kirim langsung ke WA
+    function kirimSemuaKeWA() {
+        if(!globalWaText) return;
+        // Mengubah teks menjadi format URL yang aman
+        let waUrl = `https://wa.me/?text=${encodeURIComponent(globalWaText)}`;
+        window.open(waUrl, '_blank');
     }
 
     function getCombinations(chars, k) {
@@ -354,7 +370,7 @@
 
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
-            id: bd.id, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
+            id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
         }));
         
         let leftovers = [];
@@ -454,13 +470,16 @@
         var mathRule = parseInt(document.getElementById('mathRule').value);
         var resultsDiv = document.getElementById('results');
         var statusDiv = document.getElementById('statusContainer');
+        var btnWa = document.getElementById('btnSendWA');
 
         var bdsTemplate = [];
         for (var i = 1; i <= personCount; i++) {
             var maxP = parseInt(document.getElementById('maxBlocks_' + i).value);
             var maxX = parseInt(document.getElementById('maxMultiplier_' + i).value);
+            var bdNameInput = document.getElementById('bdName_' + i).value || ('BD ' + i);
             bdsTemplate.push({
                 id: i,
+                name: bdNameInput, // Mengambil nama custom
                 maxP: isNaN(maxP) || maxP < 1 ? 999999 : maxP,
                 maxX: isNaN(maxX) || maxX < 1 ? 999999 : maxX
             });
@@ -550,12 +569,16 @@
 
         resultsDiv.innerHTML = '';
         statusDiv.innerHTML = '';
+        globalWaText = ""; // Reset teks WA
 
         if (hasError) {
             statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Cek bagian bawah)</div>`;
         } else {
             statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
         }
+        
+        // Tampilkan tombol WA setelah simulasi beres
+        btnWa.style.display = "flex";
 
         bds.forEach(bd => {
             if (bd.blocks.length > 0) {
@@ -572,26 +595,27 @@
                 });
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
-                var copyLines = [];
-                copyLines.push(bd.currentPairs + ' Line'); 
-                copyLines.push(...bbLines);
                 
+                // === FORMAT WHATSAPP ===
+                var bdText = `${bd.name} (${bd.currentPairs} Line)\n`;
+                bbLines.forEach(line => {
+                    var parts = line.split('x'); 
+                    bdText += `${parts[0].trim()}x${parts[1]}\n`; // Hilangkan spasi sesuai request
+                });
                 for (var xKey in normalGroupedByX) {
-                    copyLines.push(normalGroupedByX[xKey].join('.') + 'x' + xKey);
+                    bdText += `${normalGroupedByX[xKey].join('.')}x${xKey}\n`;
                 }
-                
-                var finalCopyString = copyLines.join('\n'); 
-                finalCopyString += '\n\nTotal -29%: ' + totalCostDiskon.toFixed(2);
+                bdText += `\nTotal : ${totalCostDiskon.toFixed(2)}\n\n`;
+                globalWaText += bdText;
+                // =======================
 
-                var bdId = 'btn_copy_bd_' + bd.id;
                 var html = `
                     <div class="person-section">
                         <div class="header-result">
-                            <div class="title-box">
-                                <div class="person-title">BD ${bd.id} <span style="font-size:13px; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Line)</span></div>
+                            <div class="title-box" style="width:100%;">
+                                <div class="person-title">${bd.name} <span style="font-size:13px; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Line)</span></div>
                                 <div class="total-box">Total: ${bd.currentCost} | -29%: <span>${totalCostDiskon.toFixed(2)}</span></div>
                             </div>
-                            <button id="${bdId}" data-copy="${finalCopyString}" onclick="copyText('${bdId}')" class="btn-copy">📋 COPY</button>
                         </div>`;
                 
                 bbLines.forEach(line => {
@@ -617,7 +641,6 @@
 
         // RENDER SISA
         if (leftovers.length > 0) {
-            var leftoverCopyLines = [];
             var normalLeftoverByX = {};
             var totalLeftover = 0;
             var leftoverPairsCount = 0;
@@ -628,6 +651,10 @@
             });
             var totalLeftoverDiskon = totalLeftover * 0.71;
 
+            // === FORMAT WHATSAPP (SISA) ===
+            var sisaWaText = `SISA ANGKA (${leftoverPairsCount} Line)\n`;
+            // ==============================
+
             var leftoverHtml = `
                 <div class="person-section leftover-section" style="grid-column: 1 / -1;">
                     <div class="header-result">
@@ -635,14 +662,11 @@
                             <div class="person-title" style="color:var(--danger-color);">⚠️ SISA ANGKA <span style="font-size:13px; font-weight:normal; color:var(--text-muted);">(${leftoverPairsCount} Line)</span></div>
                             <div class="total-box" style="border-color:var(--border-color);">Total: ${totalLeftover} | -29%: <span class="danger">${totalLeftoverDiskon.toFixed(2)}</span></div>
                         </div>
-                        <button id="btn_copy_leftover" class="btn-copy" style="border-color:var(--danger-color); color:var(--danger-color); background:transparent;">📋 COPY SISA</button>
                     </div>`;
-
-            leftoverCopyLines.push(leftoverPairsCount + ' Line');
 
             leftovers.forEach(l => {
                 if (l.chunkData.type === 'bb') {
-                    leftoverCopyLines.push(l.chunkData.digits + ' bb x' + l.missing);
+                    sisaWaText += `${l.chunkData.digits} bbx${l.missing}\n`;
                     leftoverHtml += `
                         <div class="group-block" style="border-left-color: var(--danger-color);">
                             <div class="group-text">${l.chunkData.digits} bb <span class="multiplier-danger">x${l.missing}</span></div>
@@ -655,26 +679,18 @@
 
             for (var xKey in normalLeftoverByX) {
                 var lineStr = normalLeftoverByX[xKey].join('.');
-                leftoverCopyLines.push(lineStr + 'x' + xKey);
+                sisaWaText += `${lineStr}x${xKey}\n`;
                 leftoverHtml += `
                     <div class="group-block" style="border-left-color: var(--danger-color);">
                         <div class="group-text">${lineStr}<span class="multiplier-danger">x${xKey}</span></div>
                     </div>`;
             }
 
-            var finalLeftoverCopyString = leftoverCopyLines.join('\n');
-            finalLeftoverCopyString += '\n\nTotal Sisa (-29%): ' + totalLeftoverDiskon.toFixed(2);
+            sisaWaText += `\nTotal : ${totalLeftoverDiskon.toFixed(2)}\n\n`;
+            globalWaText += sisaWaText;
 
             leftoverHtml += `</div>`;
             resultsDiv.innerHTML += leftoverHtml;
-
-            setTimeout(() => {
-                var btnSisa = document.getElementById('btn_copy_leftover');
-                if (btnSisa) {
-                    btnSisa.setAttribute('data-copy', finalLeftoverCopyString);
-                    btnSisa.onclick = function() { copyText('btn_copy_leftover'); };
-                }
-            }, 50);
         }
     }
 
@@ -682,6 +698,43 @@
         document.getElementById('rawInput').value = '';
         generatePeopleConfig();
     };
+
+    // ==========================================
+    // BAGIAN PWA (Progressive Web App)
+    // Membuat aplikasi bisa diinstall di HP/iPad
+    // ==========================================
+    if ('serviceWorker' in navigator) {
+        const swCode = `
+            self.addEventListener('install', (e) => { self.skipWaiting(); });
+            self.addEventListener('activate', (e) => { self.clients.claim(); });
+            self.addEventListener('fetch', (e) => {
+                e.respondWith(fetch(e.request).catch(() => new Response('Offline mode')));
+            });
+        `;
+        const swBlob = new Blob([swCode], {type: 'application/javascript'});
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.error);
+    }
+
+    // Generate Manifest Dinamis
+    const manifest = {
+        "name": "Splitter Pro",
+        "short_name": "Splitter",
+        "start_url": window.location.href,
+        "display": "standalone",
+        "background_color": "#0b0f19",
+        "theme_color": "#0b0f19",
+        "icons": [{
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzBiMGYxOSIvPjx0ZXh0IHg9IjUwIiB5PSI2NCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzNiODJmNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1A8L3RleHQ+PC9zdmc+",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(manifestBlob);
+    document.head.appendChild(link);
 </script>
 
 </body>
