@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Splitter Pro - Balance AI</title>
+    <title>Splitter Pro</title>
     <style>
         :root {
             --bg-gray: #2b2b2b;
@@ -148,7 +148,7 @@
                     <label for="rawInput" style="margin-bottom: 0;">ISI ANGKA DISINI</label>
                     <button onclick="pasteText()" class="btn-copy" style="font-size: 0.75rem; padding: 4px 10px; border-color: var(--neon-green); color: var(--neon-green);">📋 PASTE</button>
                 </div>
-                <textarea id="rawInput" placeholder="Tempel baris angka di sini..."></textarea>
+                <textarea id="rawInput" placeholder="Tempel angka di sini..."></textarea>
             </div>
         </div>
         
@@ -158,13 +158,13 @@
                 <input type="number" id="targetMultiplier" placeholder="Contoh: 50" min="1">
             </div>
             <div class="form-group">
-                <label for="minXPerSplit">Target Minimum X (Taruhan) per Angka</label>
-                <input type="number" id="minXPerSplit" placeholder="Contoh: 15 (Agar tidak ada x2, x8, dll)" min="1" value="15">
+                <label for="minXPerSplit">Target Minimum X </label>
+                <input type="number" id="minXPerSplit" placeholder="Contoh: 15" min="1" value="15">
             </div>
             <div class="form-group">
                 <label for="mathRule">Aturan</label>
                 <select id="mathRule">
-                    <option value="1">Acak Bebas / Pas Sisa</option>
+                    <option value="1">Acak</option>
                     <option value="5">Berakhiran 5 & 0</option>
                 </select>
             </div>
@@ -186,14 +186,14 @@
     </div>
 
     <div class="people-config-container">
-        <div class="config-header">SETTING KAPASITAS BD</div>
+        <div class="config-header">KAPASITAS BD</div>
         <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: -10px; margin-bottom: 15px;">
-            *Default terisi otomatis: Max Pasang (25) & Max X (30). Jika punya kombinasi BB besar (contoh 5 digit = 20 line), sesuaikan kapasitas Max Pasang agar muat.
+            Jika punya kombinasi BB besar (contoh 5 digit = 20 line), sesuaikan kapasitas
         </div>
         <div id="peopleConfigList" class="layout-bds"></div>
     </div>
 
-    <button class="btn-primary" onclick="processAndSplit()">Proses & Cari Distribusi Terbaik (500x Simulasi)</button>
+    <button class="btn-primary" onclick="processAndSplit()">Proses & Cari Distribusi"</button>
     <div id="results" class="layout-results"></div>
 </div>
 
@@ -588,9 +588,9 @@
         }
 
         if (hasError) {
-            resultsDiv.innerHTML += `<div class="status-bar status-error">⚠️ SIMULASI SELESAI: Masih ada sisa angka yang tidak muat ke BD manapun</div>`;
+            resultsDiv.innerHTML += `<div class="status-bar status-error">⚠️ SELESAI: Masih ada sisa angka</div>`;
         } else {
-            resultsDiv.innerHTML += `<div class="status-bar status-success">✅ SIMULASI SEMPURNA: Distribusi rata dan sesuai batasan!</div>`;
+            resultsDiv.innerHTML += `<div class="status-bar status-success">✅ SEMPURNA: Distribusi rata dan sesuai</div>`;
         }
     }
 
