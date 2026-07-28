@@ -2,8 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Splitter Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Splitter Pro - iPad Optimized</title>
     <style>
         :root {
             --bg-gray: #2b2b2b;
@@ -20,47 +20,60 @@
             background-color: var(--bg-gray);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            padding: 15px;
             min-height: 100vh;
         }
 
-        .container {
+        /* Layout Grid Baru: Kiri Kanan */
+        .layout-wrapper {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            align-items: start;
+        }
+
+        .sidebar-left {
             background-color: var(--card-bg);
-            padding: 25px;
+            padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.15);
             border: 1px solid var(--neon-blue);
-            width: 100%;
-            max-width: 1100px;
-            margin-bottom: 50px;
+            position: sticky;
+            top: 15px;
+            max-height: calc(100vh - 30px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scroll di iPad */
+        }
+
+        .main-content {
+            background-color: transparent;
+            min-height: 500px;
         }
 
         h1 { 
-            text-align: center; font-size: 2rem; margin-bottom: 25px; color: #fff;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); text-transform: uppercase; letter-spacing: 2px;
+            text-align: center; font-size: 1.6rem; margin-top: 0; margin-bottom: 20px; color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3); text-transform: uppercase; letter-spacing: 1px;
         }
         h1 span { color: var(--neon-green); text-shadow: 0 0 15px rgba(57, 255, 20, 0.6); }
 
-        .layout-top { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 20px; }
         .form-group { margin-bottom: 12px; }
         
         label { 
-            display: block; margin-bottom: 5px; font-weight: 600; 
-            color: var(--neon-blue); font-size: 0.9rem; letter-spacing: 0.5px;
+            display: block; margin-bottom: 4px; font-weight: 600; 
+            color: var(--neon-blue); font-size: 0.85rem; letter-spacing: 0.5px;
         }
         
         textarea {
-            width: 100%; height: 215px; padding: 12px; box-sizing: border-box;
+            width: 100%; height: 120px; padding: 10px; box-sizing: border-box;
             background-color: #121212; border: 1px solid var(--border-color); border-radius: 6px;
-            color: var(--neon-green); font-family: 'Courier New', Courier, monospace; font-size: 0.95rem; resize: vertical;
+            color: var(--neon-green); font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; resize: vertical;
         }
 
         input, select {
-            width: 100%; padding: 10px; box-sizing: border-box; background-color: #121212;
-            border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.95rem;
+            width: 100%; padding: 8px; box-sizing: border-box; background-color: #121212;
+            border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.9rem;
         }
 
         textarea:focus, input:focus, select:focus { 
@@ -68,56 +81,59 @@
         }
 
         .people-config-container {
-            background-color: #151515; padding: 15px; border-radius: 8px; border: 1px dashed var(--neon-blue); margin-bottom: 20px;
+            background-color: #151515; padding: 12px; border-radius: 8px; border: 1px dashed var(--neon-blue); margin-bottom: 15px;
         }
         .config-header {
-            display: flex; justify-content: center; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid #333;
-            font-weight: bold; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;
+            display: flex; justify-content: center; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #333;
+            font-weight: bold; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase;
         }
         
-        .layout-bds { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .layout-bds { display: grid; grid-template-columns: 1fr; gap: 8px; }
 
         .person-row {
-            display: flex; gap: 10px; align-items: center; padding: 10px; background: #1e1e1e; border-radius: 6px; border: 1px solid #333;
+            display: flex; gap: 8px; align-items: center; padding: 8px; background: #1e1e1e; border-radius: 6px; border: 1px solid #333;
         }
-        .person-label { width: 50px; font-weight: bold; color: var(--neon-green); font-size: 0.9rem; }
+        .person-label { width: 45px; font-weight: bold; color: var(--neon-green); font-size: 0.85rem; }
 
         button.btn-primary {
-            width: 100%; padding: 15px; background: transparent; color: var(--neon-green); border: 2px solid var(--neon-green);
-            border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s; margin-top: 10px;
+            width: 100%; padding: 12px; background: transparent; color: var(--neon-green); border: 2px solid var(--neon-green);
+            border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.3s;
             text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
         }
         button.btn-primary:hover { background-color: var(--neon-green); color: #000; box-shadow: 0 0 20px rgba(57, 255, 20, 0.5); }
 
-        .layout-results { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+        .layout-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; }
 
         .person-section {
             background-color: #1a1a1a; border-top: 3px solid var(--neon-blue); padding: 15px; border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5); position: relative;
         }
-        .leftover-section { border-top: 3px solid #ff3333; grid-column: 1 / -1; }
+        .leftover-section { border-top: 3px solid #ff3333; }
         
-        .header-result { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .header-result { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
         .title-box { display: flex; flex-direction: column; }
-        .person-title { font-weight: bold; color: #fff; font-size: 1.1rem; margin-bottom: 5px; }
-        .total-box { font-size: 0.8rem; background: #121212; padding: 4px 8px; border-radius: 4px; border: 1px solid #333; color: var(--text-muted); }
+        .person-title { font-weight: bold; color: #fff; font-size: 1rem; margin-bottom: 4px; }
+        .total-box { font-size: 0.75rem; background: #121212; padding: 4px 8px; border-radius: 4px; border: 1px solid #333; color: var(--text-muted); }
         .total-box span { color: var(--neon-green); font-weight: bold; }
         
         .btn-copy {
-            background-color: transparent; color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 6px 12px; border-radius: 4px;
-            cursor: pointer; font-size: 0.8rem; transition: 0.2s; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            background-color: transparent; color: var(--neon-blue); border: 1px solid var(--neon-blue); padding: 5px 10px; border-radius: 4px;
+            cursor: pointer; font-size: 0.75rem; transition: 0.2s; font-weight: bold; display: flex; align-items: center; justify-content: center;
         }
         .btn-copy:hover { background-color: var(--neon-blue); color: #000; box-shadow: 0 0 10px rgba(0, 243, 255, 0.5); }
 
         .group-block {
-            background-color: #121212; padding: 10px; margin-bottom: 8px; border-radius: 4px; border-left: 2px solid #444; word-wrap: break-word;
+            background-color: #121212; padding: 8px; margin-bottom: 6px; border-radius: 4px; border-left: 2px solid #444; 
         }
-        .group-text { font-family: 'Courier New', Courier, monospace; color: #ccc; line-height: 1.5; font-size: 0.9rem;}
-        .multiplier-text { color: var(--neon-green); font-weight: bold; margin-left: 3px; }
+        .group-text { 
+            font-family: 'Courier New', Courier, monospace; color: #ccc; line-height: 1.6; font-size: 0.85rem;
+            word-break: break-all; /* Memaksa angka panjang turun ke bawah */
+        }
+        .multiplier-text { color: var(--neon-green); font-weight: bold; margin-left: 3px; display: inline-block;}
 
         .status-bar {
-            padding: 15px; text-align: center; font-weight: bold; font-size: 1.1rem; border-radius: 6px;
-            margin-top: 20px; text-transform: uppercase; letter-spacing: 1px; grid-column: 1 / -1;
+            padding: 12px; text-align: center; font-weight: bold; font-size: 0.9rem; border-radius: 6px;
+            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; width: 100%; box-sizing: border-box;
         }
         .status-success { background-color: rgba(57, 255, 20, 0.1); color: var(--neon-green); border: 1px solid var(--neon-green); }
         .status-error { background-color: rgba(255, 51, 51, 0.1); color: #ff3333; border: 1px solid #ff3333; }
@@ -128,73 +144,75 @@
         }
         .floating-nav button {
             background-color: rgba(30, 30, 30, 0.8); color: var(--neon-blue); border: 2px solid var(--neon-blue);
-            width: 45px; height: 45px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; transition: 0.3s;
+            width: 40px; height: 40px; border-radius: 50%; font-size: 1rem; cursor: pointer; transition: 0.3s;
             display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
         }
-        .floating-nav button:hover { background-color: var(--neon-blue); color: #000; box-shadow: 0 0 20px rgba(0, 243, 255, 0.8); }
 
-        @media (max-width: 768px) { .layout-top, .layout-bds, .layout-results { grid-template-columns: 1fr; } }
+        /* Responsif untuk Layar Sempit / HP */
+        @media (max-width: 850px) { 
+            .layout-wrapper { grid-template-columns: 1fr; }
+            .sidebar-left { position: relative; top: 0; max-height: none; overflow-y: visible; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Splitter <span>Pro</span></h1>
-    
-    <div class="layout-top">
-        <div class="left-panel">
-            <div class="form-group" style="height: 100%;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                    <label for="rawInput" style="margin-bottom: 0;">ISI ANGKA DISINI</label>
-                    <button onclick="pasteText()" class="btn-copy" style="font-size: 0.75rem; padding: 4px 10px; border-color: var(--neon-green); color: var(--neon-green);">📋 PASTE</button>
-                </div>
-                <textarea id="rawInput" placeholder="Tempel angka di sini..."></textarea>
+<div class="layout-wrapper">
+    <div class="sidebar-left">
+        <h1>Splitter <span>Pro</span></h1>
+        
+        <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <label for="rawInput" style="margin-bottom: 0;">ISI ANGKA DISINI</label>
+                <button onclick="pasteText()" class="btn-copy" style="border-color: var(--neon-green); color: var(--neon-green);">📋 PASTE</button>
+            </div>
+            <textarea id="rawInput" placeholder="Tempel angka di sini..."></textarea>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+                <label for="targetMultiplier">Total X</label>
+                <input type="number" id="targetMultiplier" placeholder="Misal: 50" min="1">
+            </div>
+            <div class="form-group">
+                <label for="minXPerSplit">Min X</label>
+                <input type="number" id="minXPerSplit" placeholder="Misal: 15" min="1" value="15">
             </div>
         </div>
         
-        <div class="right-panel">
-            <div class="form-group">
-                <label for="targetMultiplier">Total Perkalian</label>
-                <input type="number" id="targetMultiplier" placeholder="Contoh: 50" min="1">
-            </div>
-            <div class="form-group">
-                <label for="minXPerSplit">Target Minimum X </label>
-                <input type="number" id="minXPerSplit" placeholder="Contoh: 15" min="1" value="15">
-            </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
                 <label for="mathRule">Aturan</label>
                 <select id="mathRule">
                     <option value="1">Acak</option>
-                    <option value="5">Berakhiran 5 & 0</option>
+                    <option value="5">Berakhiran 5/0</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="personCount">Berapa BD?</label>
+                <label for="personCount">Jml BD</label>
                 <select id="personCount" onchange="generatePeopleConfig()">
-                    <option value="1">1 BD</option>
                     <option value="2">2 BD</option>
                     <option value="3">3 BD</option>
                     <option value="4" selected>4 BD</option>
                     <option value="5">5 BD</option>
                     <option value="6">6 BD</option>
-                    <option value="7">7 BD</option>
                     <option value="8">8 BD</option>
-                    <option value="10">10 BD</option>
                 </select>
             </div>
         </div>
-    </div>
 
-    <div class="people-config-container">
-        <div class="config-header">KAPASITAS BD</div>
-        <div style="text-align: center; color: #888; font-size: 0.8rem; margin-top: -10px; margin-bottom: 15px;">
-            Jika punya kombinasi BB besar (contoh 5 digit = 20 line), sesuaikan kapasitas
+        <div class="people-config-container">
+            <div class="config-header">KAPASITAS BD</div>
+            <div id="peopleConfigList" class="layout-bds"></div>
         </div>
-        <div id="peopleConfigList" class="layout-bds"></div>
+
+        <button class="btn-primary" onclick="processAndSplit()">Proses & Distribusi</button>
     </div>
 
-    <button class="btn-primary" onclick="processAndSplit()">Proses & Cari Distribusi"</button>
-    <div id="results" class="layout-results"></div>
+    <div class="main-content">
+        <div id="statusContainer"></div>
+        <div id="results" class="layout-results"></div>
+    </div>
 </div>
 
 <div class="floating-nav">
@@ -229,8 +247,8 @@
             row.className = 'person-row';
             row.innerHTML = 
                 '<div class="person-label">BD ' + i + '</div>' +
-                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Pasang" min="1" style="flex:1;" title="Maksimal Pasangan Angka">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1" style="flex:1;" title="Maksimal X">';
+                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Pasang" min="1" title="Maksimal Pasangan Angka">' +
+                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1" title="Maksimal X">';
             container.appendChild(row);
         }
     }
@@ -267,7 +285,6 @@
         return result;
     }
 
-    // ALGORITMA BARU: Memecah X dengan batasan MINIMUM
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
@@ -283,7 +300,6 @@
             let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
             if (eligibleBDs.length > 0) {
-                // Utamakan BD yang masih sepi pasangan (agar rata)
                 let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5));
                 let allocation = new Map();
                 
@@ -299,9 +315,8 @@
                     let maxTake = Math.min(remaining, spaceLeft);
                     maxTake = Math.floor(maxTake / step) * step;
 
-                    if (maxTake < minTake) continue; // Skip jika BD ini tidak bisa menampung minimum nilai X
+                    if (maxTake < minTake) continue; 
 
-                    // Cari pecahan yang valid (tidak menyisakan sisa X nanggung)
                     let possibleTakes = [];
                     for (let t = minTake; t <= maxTake; t += step) {
                         let rem = remaining - t;
@@ -311,18 +326,15 @@
                     }
 
                     if (possibleTakes.length > 0) {
-                        // Ambil pecahan valid secara acak
                         let takeX = possibleTakes[Math.floor(Math.random() * possibleTakes.length)];
                         allocation.set(bd.id, takeX);
                         remaining -= takeX;
                     } else if (remaining === maxTake) {
-                        // Jika tersudut, ambil penuh sisa yang ada
                         allocation.set(bd.id, maxTake);
                         remaining -= maxTake;
                     }
                 }
 
-                // Fallback: Jika masih ada sisa X yang tidak bisa dibagi rata dengan minimum X
                 if (remaining >= step) {
                     for (let i = 0; i < eligibleBDs.length; i++) {
                         let bd = eligibleBDs[i];
@@ -338,7 +350,6 @@
                     }
                 }
 
-                // Terapkan hasil pecahan ke BD
                 for (let i = 0; i < eligibleBDs.length; i++) {
                     let bd = eligibleBDs[i];
                     let allocX = allocation.get(bd.id) || 0;
@@ -375,6 +386,7 @@
         var personCount = parseInt(document.getElementById('personCount').value);
         var mathRule = parseInt(document.getElementById('mathRule').value);
         var resultsDiv = document.getElementById('results');
+        var statusDiv = document.getElementById('statusContainer');
 
         var bdsTemplate = [];
         for (var i = 1; i <= personCount; i++) {
@@ -387,7 +399,10 @@
             });
         }
 
+        // MENGACAK MENTAHAN: Menghancurkan urutan angka bawaan user 
         var allPairsRaw = rawText.replace(/[\n\r\s,]+/g, '.').split('.').map(p => p.trim()).filter(p => p.length === 2 && !isNaN(p));
+        allPairsRaw = shuffleArray(allPairsRaw); 
+
         var pairSet = new Set(allPairsRaw);
         var chunks = []; 
 
@@ -408,7 +423,6 @@
             }
         }
         
-        // HANYA EKSTRAKSI BB 5 dan 4
         extractBB(5); 
         extractBB(4); 
 
@@ -428,10 +442,10 @@
             }
         }
 
-        shuffleArray(normalChunks);
+        // MENGACAK SEMUA CHUNKS
         chunks = chunks.concat(normalChunks);
+        chunks = shuffleArray(chunks);
 
-        // MENCARI HASIL TERBAIK (500x SIMULASI)
         let bestResult = null;
         let lowestScore = Infinity;
 
@@ -448,7 +462,6 @@
                 variance = maxPairs - minPairs;
             }
 
-            // Hukuman berat jika ada sistem pecahan yang terpaksa membagi X di bawah target (karena sisa/mentok)
             currentRun.bds.forEach(bd => {
                 bd.blocks.forEach(bl => {
                     if (bl.xVal < targetMinX && targetX >= targetMinX) {
@@ -470,8 +483,14 @@
         let leftovers = bestResult.leftovers;
         let hasError = bestResult.missingTotal > 0;
 
-        // RENDER HASIL
         resultsDiv.innerHTML = '';
+        statusDiv.innerHTML = '';
+
+        if (hasError) {
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ SELESAI: Masih ada sisa angka (Cek paling bawah)</div>`;
+        } else {
+            statusDiv.innerHTML = `<div class="status-bar status-success">✅ SEMPURNA: Distribusi rata dan berhasil</div>`;
+        }
 
         bds.forEach(bd => {
             if (bd.blocks.length > 0) {
@@ -489,7 +508,10 @@
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
                 var copyLines = [];
+                // Menambahkan info Jumlah Line di awal Copy
+                copyLines.push(bd.currentPairs + ' Line'); 
                 copyLines.push(...bbLines);
+                
                 for (var xKey in normalGroupedByX) {
                     copyLines.push(normalGroupedByX[xKey].join('.') + 'x' + xKey);
                 }
@@ -502,7 +524,7 @@
                     <div class="person-section">
                         <div class="header-result">
                             <div class="title-box">
-                                <div class="person-title">BD ${bd.id} <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Pasang)</span></div>
+                                <div class="person-title">BD ${bd.id} <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Line)</span></div>
                                 <div class="total-box">Total: ${bd.currentCost} | -29%: <span style="color:var(--neon-green)">${totalCostDiskon.toFixed(2)}</span></div>
                             </div>
                             <button id="${bdId}" data-copy="${finalCopyString}" onclick="copyText('${bdId}')" class="btn-copy">📋 COPY</button>
@@ -529,26 +551,30 @@
             }
         });
 
-        // RENDER KOLOM SISA
+        // RENDER SISA
         if (leftovers.length > 0) {
             var leftoverCopyLines = [];
             var normalLeftoverByX = {};
             var totalLeftover = 0;
+            var leftoverPairsCount = 0;
             
             leftovers.forEach(l => {
                 totalLeftover += (l.chunkData.pairsArray.length * l.missing);
+                leftoverPairsCount += l.chunkData.pairsArray.length;
             });
             var totalLeftoverDiskon = totalLeftover * 0.71;
 
             var leftoverHtml = `
-                <div class="person-section leftover-section">
+                <div class="person-section leftover-section" style="grid-column: 1 / -1;">
                     <div class="header-result">
                         <div class="title-box">
-                            <div class="person-title" style="color:#ff3333;">⚠️ SISA ANGKA</div>
+                            <div class="person-title" style="color:#ff3333;">⚠️ SISA ANGKA <span style="font-size:0.8rem; font-weight:normal; color:var(--text-muted);">(${leftoverPairsCount} Line)</span></div>
                             <div class="total-box" style="border-color:#ff3333;">Total: ${totalLeftover} | -29%: <span style="color:#ff3333;">${totalLeftoverDiskon.toFixed(2)}</span></div>
                         </div>
                         <button id="btn_copy_leftover" class="btn-copy" style="border-color:#ff3333; color:#ff3333;">📋 COPY SISA</button>
                     </div>`;
+
+            leftoverCopyLines.push(leftoverPairsCount + ' Line'); // Info Line untuk sisa angka
 
             leftovers.forEach(l => {
                 if (l.chunkData.type === 'bb') {
@@ -585,12 +611,6 @@
                     btnSisa.onclick = function() { copyText('btn_copy_leftover'); };
                 }
             }, 50);
-        }
-
-        if (hasError) {
-            resultsDiv.innerHTML += `<div class="status-bar status-error">⚠️ SELESAI: Masih ada sisa angka</div>`;
-        } else {
-            resultsDiv.innerHTML += `<div class="status-bar status-success">✅ SEMPURNA: Distribusi rata dan sesuai</div>`;
         }
     }
 
