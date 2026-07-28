@@ -597,7 +597,7 @@
                 var totalCostDiskon = bd.currentCost * 0.71; 
                 
                 // === FORMAT WHATSAPP ===
-                var bdText = `${bd.name} (${bd.currentPairs} Line)\n`;
+                var bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
                 bbLines.forEach(line => {
                     var parts = line.split('x'); 
                     bdText += `${parts[0].trim()}x${parts[1]}\n`; // Hilangkan spasi sesuai request
@@ -605,7 +605,7 @@
                 for (var xKey in normalGroupedByX) {
                     bdText += `${normalGroupedByX[xKey].join('.')}x${xKey}\n`;
                 }
-                bdText += `\nTotal : ${totalCostDiskon.toFixed(2)}\n\n`;
+                bdText += `*Total* : ${totalCostDiskon.toFixed(2)}\n\n`;
                 globalWaText += bdText;
                 // =======================
 
