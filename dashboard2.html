@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Meta tag untuk mendukung PWA -->
+    <!-- Meta tag untuk PWA -->
     <meta name="theme-color" content="#0b0f19">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Splitter Pro">
-    <!-- Icon Default (SVG Base64) agar bisa di-install -->
     <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzBiMGYxOSIvPjx0ZXh0IHg9IjUwIiB5PSI2NCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzNiODJmNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1A8L3RleHQ+PC9zdmc+">
     
     <title>Splitter Pro - Premium Edition</title>
@@ -24,6 +23,7 @@
             --button-hover: #2563eb;
             --accent-green: #34d399;   
             --danger-color: #ef4444;   
+            --warning-color: #fbbf24;
             --wa-color: #25D366;       
         }
         
@@ -131,7 +131,6 @@
             background: var(--bg-container); border-radius: 6px; border: 1px solid var(--border-color);
         }
         
-        /* Input khusus untuk mengedit nama BD */
         .person-name-input {
             width: 85px; 
             padding: 8px 5px; 
@@ -222,6 +221,21 @@
         .status-success { background-color: rgba(52, 211, 153, 0.1); color: var(--accent-green); border: 1px solid var(--accent-green); }
         .status-error { background-color: rgba(239, 68, 68, 0.1); color: var(--danger-color); border: 1px solid var(--danger-color); }
         
+        .tips-box {
+            background-color: rgba(251, 191, 36, 0.05);
+            border: 1px solid var(--warning-color);
+            color: #fde68a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .tips-box h3 { margin: 0 0 10px 0; font-size: 16px; color: var(--warning-color); display: flex; align-items: center; gap: 5px; border-bottom: 1px solid rgba(251, 191, 36, 0.2); padding-bottom: 8px;}
+        .tips-box ul { margin: 0; padding-left: 20px; }
+        .tips-box li { margin-bottom: 10px; }
+        .tips-box strong { color: #fff; background: rgba(255,255,255,0.1); padding: 2px 5px; border-radius: 4px;}
+
         .floating-nav {
             position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 9999;
         }
@@ -261,7 +275,7 @@
         <div class="grid-inputs">
             <div class="form-group">
                 <label for="targetMultiplier">Total X</label>
-                <input type="number" id="targetMultiplier" placeholder="Misal: 50" min="1">
+                <input type="number" id="targetMultiplier" placeholder="Misal: 100" min="1">
             </div>
             <div class="form-group">
                 <label for="minXPerSplit">Min X</label>
@@ -282,7 +296,10 @@
                     <option value="4" selected>4 BD</option>
                     <option value="5">5 BD</option>
                     <option value="6">6 BD</option>
+                    <option value="7">7 BD</option>
                     <option value="8">8 BD</option>
+                    <option value="9">9 BD</option>
+                    <option value="10">10 BD</option>
                 </select>
             </div>
         </div>
@@ -297,7 +314,6 @@
 
     <div class="main-content">
         <div id="statusContainer"></div>
-        <!-- Tombol Kirim WhatsApp Global (Tersembunyi sampai ada hasil) -->
         <button id="btnSendWA" class="btn-wa" style="display: none;" onclick="kirimSemuaKeWA()">📱 KIRIM SEMUA VIA WHATSAPP</button>
         <div id="results" class="layout-results"></div>
     </div>
@@ -309,7 +325,6 @@
 </div>
 
 <script>
-    // Variabel Global untuk menyimpan teks WhatsApp
     let globalWaText = "";
 
     async function pasteText() {
@@ -338,16 +353,14 @@
             row.className = 'person-row';
             row.innerHTML = 
                 '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
-                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Line" min="1">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1">';
+                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Line" min="1" title="Maksimal Baris Angka">' +
+                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1" title="Maksimal X (Bet)">';
             container.appendChild(row);
         }
     }
 
-    // Fungsi kirim langsung ke WA
     function kirimSemuaKeWA() {
         if(!globalWaText) return;
-        // Mengubah teks menjadi format URL yang aman
         let waUrl = `https://wa.me/?text=${encodeURIComponent(globalWaText)}`;
         window.open(waUrl, '_blank');
     }
@@ -473,15 +486,19 @@
         var btnWa = document.getElementById('btnSendWA');
 
         var bdsTemplate = [];
+        var totalMaxXCapacity = 0; 
         for (var i = 1; i <= personCount; i++) {
             var maxP = parseInt(document.getElementById('maxBlocks_' + i).value);
             var maxX = parseInt(document.getElementById('maxMultiplier_' + i).value);
             var bdNameInput = document.getElementById('bdName_' + i).value || ('BD ' + i);
+            
+            var cleanMaxP = isNaN(maxP) || maxP < 1 ? 999999 : maxP;
+            var cleanMaxX = isNaN(maxX) || maxX < 1 ? 999999 : maxX;
+            
+            totalMaxXCapacity += cleanMaxX;
+
             bdsTemplate.push({
-                id: i,
-                name: bdNameInput, // Mengambil nama custom
-                maxP: isNaN(maxP) || maxP < 1 ? 999999 : maxP,
-                maxX: isNaN(maxX) || maxX < 1 ? 999999 : maxX
+                id: i, name: bdNameInput, maxP: cleanMaxP, maxX: cleanMaxX
             });
         }
 
@@ -492,8 +509,11 @@
         var chunks = []; 
 
         let digits = ['0','1','2','3','4','5','6','7','8','9'];
+        
         function extractBB(k) {
             let combos = getCombinations(digits, k);
+            combos = shuffleArray(combos); 
+            
             for(let c of combos) {
                 let perms = [];
                 for(let i=0; i<k; i++) {
@@ -569,15 +589,58 @@
 
         resultsDiv.innerHTML = '';
         statusDiv.innerHTML = '';
-        globalWaText = ""; // Reset teks WA
+        globalWaText = "";
 
+        // ==========================================
+        // SMART DIAGNOSTICS & TIPS GENERATOR
+        // ==========================================
         if (hasError) {
-            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Cek bagian bawah)</div>`;
+            let tipsHTML = `<div class="tips-box">
+                <h3>💡 Rekomendasi Pintar (Ikuti saran ini):</h3><ul>`;
+            let tipCount = 0;
+
+            // 1. Cek Aturan Kelipatan 5
+            if (mathRule === 5) {
+                if (targetX % 5 !== 0) {
+                    tipsHTML += `<li>🔴 Karena Anda memakai aturan Akhiran 5/0, maka <strong>Total X</strong> harus berkelipatan 5. <br>👉 <strong>Solusi:</strong> Ubah Total X menjadi <strong>${Math.max(5, Math.round(targetX/5)*5)}</strong>.</li>`;
+                    tipCount++;
+                }
+                if (targetMinX % 5 !== 0) {
+                    tipsHTML += `<li>🔴 <strong>Min X</strong> juga harus berkelipatan 5. <br>👉 <strong>Solusi:</strong> Ubah Min X menjadi <strong>${Math.max(5, Math.round(targetMinX/5)*5)}</strong>.</li>`;
+                    tipCount++;
+                }
+            }
+
+            // 2. Cek Total Kapasitas Max X
+            if (targetX > totalMaxXCapacity) {
+                tipsHTML += `<li>🔴 Total X yang Anda minta (${targetX}) lebih besar dari gabungan maksimal semua BD (${totalMaxXCapacity}). Sistem kekurangan tampungan.<br>👉 <strong>Solusi 1:</strong> Tambah <strong>Jumlah BD</strong>.<br>👉 <strong>Solusi 2:</strong> Tambahkan angka <strong>Max X</strong> pada pengaturan masing-masing BD.</li>`;
+                tipCount++;
+            }
+
+            // 3. Cek Kepenuhan Max Line per BD
+            let bdsFullLine = bds.filter(bd => bd.currentPairs >= bd.maxP).length;
+            if (bdsFullLine > 0) {
+                tipsHTML += `<li>🔴 Ada ${bdsFullLine} BD yang sudah mencapai batas maksimal baris/line. Angka terpaksa dilempar ke sisa.<br>👉 <strong>Solusi:</strong> Tambahkan angka <strong>Max Line</strong> pada BD (misal ubah jadi 100 atau 999).</li>`;
+                tipCount++;
+            }
+
+            // 4. Cek Bentrok karena Min X terlalu besar (Jika kapasitas sebenarnya cukup)
+            if (targetX <= totalMaxXCapacity && tipCount === 0) {
+                tipsHTML += `<li>🔴 Sistem kebingungan memecah sisa X karena angka <strong>Min X</strong> terlalu kaku atau terlalu besar dibandingkan dengan sisa jatah BD.<br>👉 <strong>Solusi 1:</strong> Kurangi nilai <strong>Min X</strong> (Coba ubah menjadi 5 atau 1).<br>👉 <strong>Solusi 2:</strong> Naikkan <strong>Max X</strong> di beberapa BD agar lebih longgar.</li>`;
+                tipCount++;
+            }
+
+            // Fallback jika tidak terdeteksi spesifik
+            if (tipCount === 0) {
+                tipsHTML += `<li>🔴 Sistem kekurangan ruang gerak untuk membagi angka tanpa melanggar batas.<br>👉 <strong>Solusi Cepat:</strong> Ubah <strong>Min X jadi 1</strong>, ATAU naikkan <strong>Max X</strong> dan <strong>Max Line</strong> pada BD.</li>`;
+            }
+
+            tipsHTML += `</ul></div>`;
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat ${leftovers.length} baris sisa angka</div>` + tipsHTML;
         } else {
-            statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
+            statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Berhasil Sempurna (Tanpa Sisa)</div>`;
         }
         
-        // Tampilkan tombol WA setelah simulasi beres
         btnWa.style.display = "flex";
 
         bds.forEach(bd => {
@@ -596,18 +659,19 @@
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
                 
-                // === FORMAT WHATSAPP ===
                 var bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
+                
                 bbLines.forEach(line => {
                     var parts = line.split('x'); 
-                    bdText += `${parts[0].trim()}x${parts[1]}\n`; // Hilangkan spasi sesuai request
+                    bdText += `${parts[0].trim()} x${parts[1]}\n`;
                 });
+                
                 for (var xKey in normalGroupedByX) {
-                    bdText += `${normalGroupedByX[xKey].join('.')}x${xKey}\n`;
+                    bdText += `${normalGroupedByX[xKey].join('.')} x${xKey}\n`;
                 }
-                bdText += `*Total* : ${totalCostDiskon.toFixed(2)}\n\n`;
+                
+                bdText += `*Total : ${totalCostDiskon.toFixed(2)}*\n\n`;
                 globalWaText += bdText;
-                // =======================
 
                 var html = `
                     <div class="person-section">
@@ -639,7 +703,7 @@
             }
         });
 
-        // RENDER SISA
+        // RENDER SISA ANGKA
         if (leftovers.length > 0) {
             var normalLeftoverByX = {};
             var totalLeftover = 0;
@@ -651,9 +715,7 @@
             });
             var totalLeftoverDiskon = totalLeftover * 0.71;
 
-            // === FORMAT WHATSAPP (SISA) ===
-            var sisaWaText = `SISA ANGKA (${leftoverPairsCount} Line)\n`;
-            // ==============================
+            var sisaWaText = `*SISA ANGKA* (${leftoverPairsCount} Line)\n`;
 
             var leftoverHtml = `
                 <div class="person-section leftover-section" style="grid-column: 1 / -1;">
@@ -666,7 +728,7 @@
 
             leftovers.forEach(l => {
                 if (l.chunkData.type === 'bb') {
-                    sisaWaText += `${l.chunkData.digits} bbx${l.missing}\n`;
+                    sisaWaText += `${l.chunkData.digits} bb x${l.missing}\n`;
                     leftoverHtml += `
                         <div class="group-block" style="border-left-color: var(--danger-color);">
                             <div class="group-text">${l.chunkData.digits} bb <span class="multiplier-danger">x${l.missing}</span></div>
@@ -679,14 +741,14 @@
 
             for (var xKey in normalLeftoverByX) {
                 var lineStr = normalLeftoverByX[xKey].join('.');
-                sisaWaText += `${lineStr}x${xKey}\n`;
+                sisaWaText += `${lineStr} x${xKey}\n`;
                 leftoverHtml += `
                     <div class="group-block" style="border-left-color: var(--danger-color);">
                         <div class="group-text">${lineStr}<span class="multiplier-danger">x${xKey}</span></div>
                     </div>`;
             }
 
-            sisaWaText += `\nTotal : ${totalLeftoverDiskon.toFixed(2)}\n\n`;
+            sisaWaText += `*Total : ${totalLeftoverDiskon.toFixed(2)}*\n\n`;
             globalWaText += sisaWaText;
 
             leftoverHtml += `</div>`;
@@ -699,10 +761,6 @@
         generatePeopleConfig();
     };
 
-    // ==========================================
-    // BAGIAN PWA (Progressive Web App)
-    // Membuat aplikasi bisa diinstall di HP/iPad
-    // ==========================================
     if ('serviceWorker' in navigator) {
         const swCode = `
             self.addEventListener('install', (e) => { self.skipWaiting(); });
@@ -714,27 +772,6 @@
         const swBlob = new Blob([swCode], {type: 'application/javascript'});
         navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.error);
     }
-
-    // Generate Manifest Dinamis
-    const manifest = {
-        "name": "Splitter Pro",
-        "short_name": "Splitter",
-        "start_url": window.location.href,
-        "display": "standalone",
-        "background_color": "#0b0f19",
-        "theme_color": "#0b0f19",
-        "icons": [{
-            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzBiMGYxOSIvPjx0ZXh0IHg9IjUwIiB5PSI2NCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzNiODJmNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1A8L3RleHQ+PC9zdmc+",
-            "sizes": "512x512",
-            "type": "image/svg+xml",
-            "purpose": "any maskable"
-        }]
-    };
-    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-    const link = document.createElement('link');
-    link.rel = 'manifest';
-    link.href = URL.createObjectURL(manifestBlob);
-    document.head.appendChild(link);
 </script>
 
 </body>
