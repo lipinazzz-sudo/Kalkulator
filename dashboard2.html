@@ -546,9 +546,8 @@
                 visited.add(p);
             }
         }
-
-        chunks = chunks.concat(normalChunks);
-        chunks = shuffleArray(chunks);
+chunks = chunks.concat(normalChunks);
+        chunks.sort((a, b) => b.pairsArray.length - a.pairsArray.length);
 
         let bestResult = null;
         let lowestScore = Infinity;
