@@ -596,19 +596,16 @@
         globalWaText = "";
 
         if (hasError) {
-            // MENDAPATKAN LIST BD YANG AKTIF UNTUK TIPS
             let activeBDList = [];
             for(let i=1; i<=personCount; i++) activeBDList.push(i);
             let strActiveBD = activeBDList.join('/');
             
-            // MENGHITUNG OPSI TAMBAH BD BERIKUTNYA UNTUK TIPS
             let nextBDs = [];
             for(let i = personCount + 1; i <= 10; i++) nextBDs.push(i);
             let suggestTambahBD = nextBDs.length > 0 
                 ? `Tambah BD jadi <strong>${nextBDs.join('/')}</strong>`
                 : `Tambah jumlah BD (saat ini sudah maksimal 10 BD)`;
 
-            // FORMAT TIPS BARU (Sesuai Permintaan)
             let tipsHTML = `
             <div class="tips-box">
                 <h3>💡 Solusi Mengatasi Sisa Angka:</h3>
@@ -628,30 +625,42 @@
 
         bds.forEach(bd => {
             if (bd.blocks.length > 0) {
+                var normalGroups = []; // Array of {xVal, pairs: []}
                 var bbLines = [];
-                var normalGroupedByX = {};
                 
+                // LOGIKA ANTI DETEKSI POLA:
+                // Masukkan angka ke keranjang maksimal 6 pasang per X.
                 bd.blocks.forEach(bl => {
                     if (bl.chunkData.type === 'bb') {
-                        bbLines.push(bl.chunkData.digits + ' bb x' + bl.xVal);
+                        bbLines.push({ type: 'bb', text: bl.chunkData.digits + ' bb x' + bl.xVal });
                     } else {
-                        if (!normalGroupedByX[bl.xVal]) normalGroupedByX[bl.xVal] = [];
-                        normalGroupedByX[bl.xVal].push(...bl.chunkData.pairsArray);
+                        let added = false;
+                        for (let i = 0; i < normalGroups.length; i++) {
+                            if (normalGroups[i].xVal === bl.xVal && (normalGroups[i].pairs.length + bl.chunkData.pairsArray.length) <= 6) {
+                                normalGroups[i].pairs.push(...bl.chunkData.pairsArray);
+                                added = true;
+                                break;
+                            }
+                        }
+                        if (!added) {
+                            normalGroups.push({ xVal: bl.xVal, pairs: [...bl.chunkData.pairsArray] });
+                        }
                     }
                 });
 
+                // Acak seluruh grup agar nilai X tidak menggumpal di satu area
+                normalGroups = shuffleArray(normalGroups);
+
                 var totalCostDiskon = bd.currentCost * 0.71; 
-                
                 var bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
                 
-                bbLines.forEach(line => {
-                    var parts = line.split('x'); 
-                    bdText += `${parts[0].trim()} x${parts[1]}\n`;
+                bbLines.forEach(item => {
+                    bdText += `${item.text}\n`;
                 });
                 
-                for (var xKey in normalGroupedByX) {
-                    bdText += `${normalGroupedByX[xKey].join('.')} x${xKey}\n`;
-                }
+                normalGroups.forEach(g => {
+                    bdText += `${g.pairs.join('.')} x${g.xVal}\n`;
+                });
                 
                 bdText += `*Total : ${totalCostDiskon.toFixed(2)}*\n\n`;
                 globalWaText += bdText;
@@ -665,36 +674,56 @@
                             </div>
                         </div>`;
                 
-                bbLines.forEach(line => {
-                    var parts = line.split('x'); 
+                bbLines.forEach(item => {
+                    var parts = item.text.split('x'); 
                     html += `
                         <div class="group-block">
                             <div class="group-text">${parts[0].trim()} <span class="multiplier-text">x${parts[1]}</span></div>
                         </div>`;
                 });
 
-                for (var xKey in normalGroupedByX) {
-                    var lineString = normalGroupedByX[xKey].join('.');
+                normalGroups.forEach(g => {
+                    let lineString = g.pairs.join('.');
                     html += `
                         <div class="group-block">
-                            <div class="group-text">${lineString}<span class="multiplier-text">x${xKey}</span></div>
+                            <div class="group-text">${lineString} <span class="multiplier-text">x${g.xVal}</span></div>
                         </div>`;
-                }
+                });
 
                 html += `</div>`;
                 resultsDiv.innerHTML += html;
             }
         });
 
+        // RENDER SISA ANGKA (ANTI DETEKSI POLA JUGA)
         if (leftovers.length > 0) {
-            var normalLeftoverByX = {};
+            var leftoverNormalGroups = [];
+            var leftoverBbLines = [];
             var totalLeftover = 0;
             var leftoverPairsCount = 0;
             
             leftovers.forEach(l => {
                 totalLeftover += (l.chunkData.pairsArray.length * l.missing);
                 leftoverPairsCount += l.chunkData.pairsArray.length;
+
+                if (l.chunkData.type === 'bb') {
+                    leftoverBbLines.push({ type: 'bb', text: l.chunkData.digits + ' bb x' + l.missing });
+                } else {
+                    let added = false;
+                    for (let i = 0; i < leftoverNormalGroups.length; i++) {
+                        if (leftoverNormalGroups[i].xVal === l.missing && (leftoverNormalGroups[i].pairs.length + l.chunkData.pairsArray.length) <= 6) {
+                            leftoverNormalGroups[i].pairs.push(...l.chunkData.pairsArray);
+                            added = true;
+                            break;
+                        }
+                    }
+                    if (!added) {
+                        leftoverNormalGroups.push({ xVal: l.missing, pairs: [...l.chunkData.pairsArray] });
+                    }
+                }
             });
+
+            leftoverNormalGroups = shuffleArray(leftoverNormalGroups);
             var totalLeftoverDiskon = totalLeftover * 0.71;
 
             var sisaWaText = `*SISA ANGKA* (${leftoverPairsCount} Line)\n`;
@@ -708,27 +737,23 @@
                         </div>
                     </div>`;
 
-            leftovers.forEach(l => {
-                if (l.chunkData.type === 'bb') {
-                    sisaWaText += `${l.chunkData.digits} bb x${l.missing}\n`;
-                    leftoverHtml += `
-                        <div class="group-block" style="border-left-color: var(--danger-color);">
-                            <div class="group-text">${l.chunkData.digits} bb <span class="multiplier-danger">x${l.missing}</span></div>
-                        </div>`;
-                } else {
-                    if (!normalLeftoverByX[l.missing]) normalLeftoverByX[l.missing] = [];
-                    normalLeftoverByX[l.missing].push(...l.chunkData.pairsArray);
-                }
-            });
-
-            for (var xKey in normalLeftoverByX) {
-                var lineStr = normalLeftoverByX[xKey].join('.');
-                sisaWaText += `${lineStr} x${xKey}\n`;
+            leftoverBbLines.forEach(item => {
+                sisaWaText += `${item.text}\n`;
+                var parts = item.text.split('x'); 
                 leftoverHtml += `
                     <div class="group-block" style="border-left-color: var(--danger-color);">
-                        <div class="group-text">${lineStr}<span class="multiplier-danger">x${xKey}</span></div>
+                        <div class="group-text">${parts[0].trim()} <span class="multiplier-danger">x${parts[1]}</span></div>
                     </div>`;
-            }
+            });
+
+            leftoverNormalGroups.forEach(g => {
+                let lineStr = g.pairs.join('.');
+                sisaWaText += `${lineStr} x${g.xVal}\n`;
+                leftoverHtml += `
+                    <div class="group-block" style="border-left-color: var(--danger-color);">
+                        <div class="group-text">${lineStr} <span class="multiplier-danger">x${g.xVal}</span></div>
+                    </div>`;
+            });
 
             sisaWaText += `*Total : ${totalLeftoverDiskon.toFixed(2)}*\n\n`;
             globalWaText += sisaWaText;
