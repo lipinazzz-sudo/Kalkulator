@@ -278,7 +278,7 @@
             </div>
             <div class="form-group">
                 <label for="minXPerSplit">Min X</label>
-                <input type="number" id="minXPerSplit" placeholder="Misal: 15" min="1" value="15">
+                <input type="number" id="minXPerSplit" placeholder="Misal: 10" min="1" value="10">
             </div>
             <div class="form-group">
                 <label for="mathRule">Aturan</label>
@@ -352,8 +352,8 @@
             row.className = 'person-row';
             row.innerHTML = 
                 '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
-                '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Line" min="1">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">';
+                '<input type="number" id="maxBlocks_' + i + '" value="20" placeholder="Max Line" min="1">' +
+                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1">';
             container.appendChild(row);
         }
     }
@@ -625,11 +625,9 @@
 
         bds.forEach(bd => {
             if (bd.blocks.length > 0) {
-                var normalGroups = []; // Array of {xVal, pairs: []}
+                var normalGroups = []; 
                 var bbLines = [];
                 
-                // LOGIKA ANTI DETEKSI POLA:
-                // Masukkan angka ke keranjang maksimal 6 pasang per X.
                 bd.blocks.forEach(bl => {
                     if (bl.chunkData.type === 'bb') {
                         bbLines.push({ type: 'bb', text: bl.chunkData.digits + ' bb x' + bl.xVal });
@@ -648,7 +646,6 @@
                     }
                 });
 
-                // Acak seluruh grup agar nilai X tidak menggumpal di satu area
                 normalGroups = shuffleArray(normalGroups);
 
                 var totalCostDiskon = bd.currentCost * 0.71; 
@@ -695,7 +692,6 @@
             }
         });
 
-        // RENDER SISA ANGKA (ANTI DETEKSI POLA JUGA)
         if (leftovers.length > 0) {
             var leftoverNormalGroups = [];
             var leftoverBbLines = [];
