@@ -228,11 +228,12 @@
             border-radius: 8px;
             margin-bottom: 20px;
             font-size: 14px;
-            line-height: 1.5;
+            line-height: 1.6;
         }
-        .tips-box h3 { margin: 0 0 8px 0; font-size: 15px; display: flex; align-items: center; gap: 5px; }
-        .tips-box ul { margin: 0; padding-left: 20px; }
-        .tips-box li { margin-bottom: 4px; }
+        .tips-box h3 { margin: 0 0 10px 0; font-size: 15px; display: flex; align-items: center; gap: 5px; color: var(--warning-color); }
+        .tips-box ul { margin: 0; padding-left: 20px; font-weight: 500; }
+        .tips-box li { margin-bottom: 6px; }
+        .tips-box li strong { color: #fff; }
 
         .floating-nav {
             position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 9999;
@@ -420,15 +421,12 @@
                     }
 
                     if (possibleTakes.length > 0) {
-                        // PERBAIKAN: SMART RANDOM
-                        // Sistem memprioritaskan mengambil bagian potongan terbesar (hingga 70% peluang)
-                        // agar tidak boros baris BD.
                         let takeX;
                         if (Math.random() > 0.3) {
-                            takeX = possibleTakes[possibleTakes.length - 1]; // Ambil nilai terbesar yang valid (contoh: 50)
+                            takeX = possibleTakes[possibleTakes.length - 1]; 
                         } else {
                             let halfIndex = Math.floor(possibleTakes.length / 2);
-                            let upperHalf = possibleTakes.slice(halfIndex); // Ambil dari setengah opsi yang tinggi-tinggi
+                            let upperHalf = possibleTakes.slice(halfIndex); 
                             takeX = upperHalf[Math.floor(Math.random() * upperHalf.length)];
                         }
                         
@@ -554,15 +552,11 @@
         }
 
         chunks = chunks.concat(normalChunks);
-        
-        // PERBAIKAN: Mengurutkan agar BB 5 Angka yang memakan banyak Line diproses paling duluan 
-        // sehingga mereka bisa mendapat porsi BD terlebih dahulu sebelum diisi angka eceran
         chunks.sort((a, b) => b.pairsArray.length - a.pairsArray.length);
 
         let bestResult = null;
         let lowestScore = Infinity;
 
-        // PERBAIKAN: Super Simulasi. Dinaikkan dari 500 menjadi 5000 simulasi pencarian background.
         for (let sim = 0; sim < 5000; sim++) {
             let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
             
@@ -590,7 +584,7 @@
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            if (score === 0) break; // Auto Stop jika ketemu hasil 0 sisa
+            if (score === 0) break; 
         }
 
         let bds = bestResult.bds;
@@ -602,7 +596,30 @@
         globalWaText = "";
 
         if (hasError) {
-            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas Max Line BD Penuh)</div>`;
+            // MENDAPATKAN LIST BD YANG AKTIF UNTUK TIPS
+            let activeBDList = [];
+            for(let i=1; i<=personCount; i++) activeBDList.push(i);
+            let strActiveBD = activeBDList.join('/');
+            
+            // MENGHITUNG OPSI TAMBAH BD BERIKUTNYA UNTUK TIPS
+            let nextBDs = [];
+            for(let i = personCount + 1; i <= 10; i++) nextBDs.push(i);
+            let suggestTambahBD = nextBDs.length > 0 
+                ? `Tambah BD jadi <strong>${nextBDs.join('/')}</strong>`
+                : `Tambah jumlah BD (saat ini sudah maksimal 10 BD)`;
+
+            // FORMAT TIPS BARU (Sesuai Permintaan)
+            let tipsHTML = `
+            <div class="tips-box">
+                <h3>💡 Solusi Mengatasi Sisa Angka:</h3>
+                <ul>
+                    <li>Naikkan <strong>Max X</strong> (atau Max Line) pada BD ${strActiveBD}</li>
+                    <li>Kecilkan <strong>Min X</strong></li>
+                    <li>${suggestTambahBD}</li>
+                </ul>
+            </div>`;
+            
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas kapasitas penuh)</div>` + tipsHTML;
         } else {
             statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
         }
