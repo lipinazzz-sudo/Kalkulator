@@ -419,7 +419,7 @@
                         if (rem === 0 || rem >= minTake) {
                             // Cek batasan max 10 pasang untuk X yang sama
                             if (chunk.type === 'normal') {
-                                if ((bd.xCountsNormal[t] || 0) + chunk.pairsArray.length > 10) continue;
+                                if ((bd.xCountsNormal[t] || 0) + chunk.pairsArray.length > 8) continue;
                             }
                             possibleTakes.push(t);
                         }
@@ -439,7 +439,7 @@
                     } else if (remaining === maxTake) {
                         let validMaxTake = true;
                         if (chunk.type === 'normal') {
-                            if ((bd.xCountsNormal[maxTake] || 0) + chunk.pairsArray.length > 10) validMaxTake = false;
+                            if ((bd.xCountsNormal[maxTake] || 0) + chunk.pairsArray.length > 8) validMaxTake = false;
                         }
                         if (validMaxTake) {
                             allocation.set(bd.id, maxTake);
