@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Meta tag untuk PWA -->
     <meta name="theme-color" content="#0b0f19">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -292,9 +291,9 @@
                 <select id="personCount" onchange="generatePeopleConfig()">
                     <option value="2">2 BD</option>
                     <option value="3">3 BD</option>
-                    <option value="4" selected>4 BD</option>
+                    <option value="4">4 BD</option>
                     <option value="5">5 BD</option>
-                    <option value="6">6 BD</option>
+                    <option value="6" selected>6 BD</option>
                     <option value="7">7 BD</option>
                     <option value="8">8 BD</option>
                     <option value="9">9 BD</option>
@@ -353,7 +352,7 @@
             row.innerHTML = 
                 '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
                 '<input type="number" id="maxBlocks_' + i + '" value="30" placeholder="Max Line" min="1">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1">';
+                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">';
             container.appendChild(row);
         }
     }
@@ -421,7 +420,18 @@
                     }
 
                     if (possibleTakes.length > 0) {
-                        let takeX = possibleTakes[Math.floor(Math.random() * possibleTakes.length)];
+                        // PERBAIKAN: SMART RANDOM
+                        // Sistem memprioritaskan mengambil bagian potongan terbesar (hingga 70% peluang)
+                        // agar tidak boros baris BD.
+                        let takeX;
+                        if (Math.random() > 0.3) {
+                            takeX = possibleTakes[possibleTakes.length - 1]; // Ambil nilai terbesar yang valid (contoh: 50)
+                        } else {
+                            let halfIndex = Math.floor(possibleTakes.length / 2);
+                            let upperHalf = possibleTakes.slice(halfIndex); // Ambil dari setengah opsi yang tinggi-tinggi
+                            takeX = upperHalf[Math.floor(Math.random() * upperHalf.length)];
+                        }
+                        
                         allocation.set(bd.id, takeX);
                         remaining -= takeX;
                     } else if (remaining === maxTake) {
@@ -485,7 +495,6 @@
         var btnWa = document.getElementById('btnSendWA');
 
         var bdsTemplate = [];
-        var totalMaxXCapacity = 0; // Untuk analisa error
         for (var i = 1; i <= personCount; i++) {
             var maxP = parseInt(document.getElementById('maxBlocks_' + i).value);
             var maxX = parseInt(document.getElementById('maxMultiplier_' + i).value);
@@ -494,8 +503,6 @@
             var cleanMaxP = isNaN(maxP) || maxP < 1 ? 999999 : maxP;
             var cleanMaxX = isNaN(maxX) || maxX < 1 ? 999999 : maxX;
             
-            totalMaxXCapacity += cleanMaxX;
-
             bdsTemplate.push({
                 id: i, name: bdNameInput, maxP: cleanMaxP, maxX: cleanMaxX
             });
@@ -511,7 +518,6 @@
         
         function extractBB(k) {
             let combos = getCombinations(digits, k);
-            // UPDATE: Acak kombinasi sebelum diproses agar tidak selalu mulai dari 0,1,2,3...
             combos = shuffleArray(combos); 
             
             for(let c of combos) {
@@ -546,13 +552,18 @@
                 visited.add(p);
             }
         }
-chunks = chunks.concat(normalChunks);
+
+        chunks = chunks.concat(normalChunks);
+        
+        // PERBAIKAN: Mengurutkan agar BB 5 Angka yang memakan banyak Line diproses paling duluan 
+        // sehingga mereka bisa mendapat porsi BD terlebih dahulu sebelum diisi angka eceran
         chunks.sort((a, b) => b.pairsArray.length - a.pairsArray.length);
 
         let bestResult = null;
         let lowestScore = Infinity;
 
-        for (let sim = 0; sim < 500; sim++) {
+        // PERBAIKAN: Super Simulasi. Dinaikkan dari 500 menjadi 5000 simulasi pencarian background.
+        for (let sim = 0; sim < 5000; sim++) {
             let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
             
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
@@ -579,7 +590,7 @@ chunks = chunks.concat(normalChunks);
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            if (score === 0) break; 
+            if (score === 0) break; // Auto Stop jika ketemu hasil 0 sisa
         }
 
         let bds = bestResult.bds;
@@ -590,26 +601,8 @@ chunks = chunks.concat(normalChunks);
         statusDiv.innerHTML = '';
         globalWaText = "";
 
-        // TAMPILKAN STATUS & TIPS CERDAS JIKA ADA SISA
         if (hasError) {
-            let tipsHTML = `<div class="tips-box">
-                <h3>💡 Tips Agar Tidak Ada Sisa Angka:</h3><ul>`;
-            
-            if (targetX > totalMaxXCapacity) {
-                tipsHTML += `<li><strong>Kapasitas Kurang:</strong> Total X yang Anda minta (${targetX}) lebih besar dari gabungan kapasitas Max X semua BD (${totalMaxXCapacity}). <strong>Naikkan Max X</strong> pada BD atau <strong>tambah Jumlah BD</strong>.</li>`;
-            }
-            if (mathRule === 5 && targetX % 5 !== 0) {
-                let suggestedX = Math.round(targetX/5)*5 || 5;
-                tipsHTML += `<li><strong>Aturan Kelipatan 5:</strong> Karena menggunakan aturan akhiran 5/0, maka <strong>Total X harus kelipatan 5</strong>. Coba ubah Total X Anda dari ${targetX} menjadi <strong>${suggestedX}</strong>.</li>`;
-            }
-            if (targetMinX > 15) {
-                tipsHTML += `<li><strong>Min X Terlalu Besar:</strong> Coba <strong>turunkan Min X</strong> (misal ke 10 atau 15) agar sistem punya ruang lebih fleksibel untuk membagi-bagi X.</li>`;
-            }
-            tipsHTML += `<li><strong>Max Line Penuh:</strong> Jika ada BD yang mencapai batas Max Line, angkanya akan dialihkan ke sisa. Coba <strong>naikkan Max Line</strong> di pengaturan BD.</li>`;
-            
-            tipsHTML += `</ul></div>`;
-            
-            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka</div>` + tipsHTML;
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas Max Line BD Penuh)</div>`;
         } else {
             statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
         }
@@ -676,7 +669,6 @@ chunks = chunks.concat(normalChunks);
             }
         });
 
-        // RENDER SISA ANGKA
         if (leftovers.length > 0) {
             var normalLeftoverByX = {};
             var totalLeftover = 0;
