@@ -382,7 +382,8 @@
 
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
-            id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: []
+            id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: [],
+            xCountsNormal: {} // Tracker untuk batasan 10 angka per X
         }));
         
         let leftovers = [];
@@ -416,6 +417,10 @@
                     for (let t = minTake; t <= maxTake; t += step) {
                         let rem = remaining - t;
                         if (rem === 0 || rem >= minTake) {
+                            // Cek batasan max 10 pasang untuk X yang sama
+                            if (chunk.type === 'normal') {
+                                if ((bd.xCountsNormal[t] || 0) + chunk.pairsArray.length > 10) continue;
+                            }
                             possibleTakes.push(t);
                         }
                     }
@@ -429,12 +434,17 @@
                             let upperHalf = possibleTakes.slice(halfIndex); 
                             takeX = upperHalf[Math.floor(Math.random() * upperHalf.length)];
                         }
-                        
                         allocation.set(bd.id, takeX);
                         remaining -= takeX;
                     } else if (remaining === maxTake) {
-                        allocation.set(bd.id, maxTake);
-                        remaining -= maxTake;
+                        let validMaxTake = true;
+                        if (chunk.type === 'normal') {
+                            if ((bd.xCountsNormal[maxTake] || 0) + chunk.pairsArray.length > 10) validMaxTake = false;
+                        }
+                        if (validMaxTake) {
+                            allocation.set(bd.id, maxTake);
+                            remaining -= maxTake;
+                        }
                     }
                 }
 
@@ -446,8 +456,23 @@
                         let spaceLeft = bd.maxX - currentAlloc;
                         let maxTake = Math.min(remaining, spaceLeft);
                         maxTake = Math.floor(maxTake / step) * step;
+
                         if (maxTake >= step) {
-                            allocation.set(bd.id, currentAlloc + maxTake);
+                            let proposedX = currentAlloc + maxTake;
+                            if (chunk.type === 'normal') {
+                                let foundValid = false;
+                                for (let subT = maxTake; subT >= step; subT -= step) {
+                                    let testProposed = currentAlloc + subT;
+                                    if ((bd.xCountsNormal[testProposed] || 0) + chunk.pairsArray.length <= 10) {
+                                        maxTake = subT;
+                                        proposedX = testProposed;
+                                        foundValid = true;
+                                        break;
+                                    }
+                                }
+                                if (!foundValid) continue;
+                            }
+                            allocation.set(bd.id, proposedX);
                             remaining -= maxTake;
                         }
                     }
@@ -460,6 +485,9 @@
                         bd.blocks.push({ chunkData: chunk, xVal: allocX });
                         bd.currentPairs += chunk.pairsArray.length;
                         bd.currentCost += (chunk.pairsArray.length * allocX); 
+                        if (chunk.type === 'normal') {
+                            bd.xCountsNormal[allocX] = (bd.xCountsNormal[allocX] || 0) + chunk.pairsArray.length;
+                        }
                     }
                 }
                 
@@ -532,6 +560,7 @@
             }
         }
         
+        // Memastikan BB 5 & 4 terekstrak lebih dulu dengan sempurna jika ada kombinasinya
         extractBB(5); 
         extractBB(4); 
 
@@ -557,6 +586,7 @@
         let bestResult = null;
         let lowestScore = Infinity;
 
+        // Auto simulasi dilatar belakang untuk mencari hasil teradil tanpa sisa
         for (let sim = 0; sim < 5000; sim++) {
             let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
             
