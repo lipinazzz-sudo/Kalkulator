@@ -284,8 +284,7 @@
                 <label for="mathRule">Aturan</label>
                 <select id="mathRule">
                     <option value="1">Acak Bebas</option>
-                    <option value="5">Berakhiran 5/0</option>
-                </select>
+                    <option value="5" selected>Berakhiran 5/0</option> </select>
             </div>
             <div class="form-group">
                 <label for="personCount">Jumlah BD</label>
@@ -353,7 +352,7 @@
             row.innerHTML = 
                 '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
                 '<input type="number" id="maxBlocks_' + i + '" value="20" placeholder="Max Line" min="1">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="30" placeholder="Max X" min="1">';
+                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">'; // Default Max X 50
             container.appendChild(row);
         }
     }
@@ -383,7 +382,8 @@
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: [],
-            xCountsNormal: {} // Tracker untuk batasan 10 angka per X
+            xCountsNormal: {}, // Tracker batas 6 angka per X
+            bbCount: 0 // Tracker jaminan BB tiap BD
         }));
         
         let leftovers = [];
@@ -396,7 +396,18 @@
             let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
             if (eligibleBDs.length > 0) {
-                let shuffledBDs = [...eligibleBDs].sort((a,b) => (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5));
+                let shuffledBDs = [...eligibleBDs];
+                
+                // LOGIKA BARU: Jika membagikan BB, dahulukan BD yang belum dapat BB sama sekali
+                if (chunk.type === 'bb') {
+                    shuffledBDs.sort((a,b) => {
+                        if (a.bbCount !== b.bbCount) return a.bbCount - b.bbCount;
+                        return (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5);
+                    });
+                } else {
+                    shuffledBDs.sort((a,b) => (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5));
+                }
+
                 let allocation = new Map();
                 
                 let remaining = reqX;
@@ -417,8 +428,8 @@
                     for (let t = minTake; t <= maxTake; t += step) {
                         let rem = remaining - t;
                         if (rem === 0 || rem >= minTake) {
-                            // Cek batasan max 10 pasang untuk X yang sama
                             if (chunk.type === 'normal') {
+                                // BATAS KETAT 6 ANGKA PER-X
                                 if ((bd.xCountsNormal[t] || 0) + chunk.pairsArray.length > 6) continue;
                             }
                             possibleTakes.push(t);
@@ -439,6 +450,7 @@
                     } else if (remaining === maxTake) {
                         let validMaxTake = true;
                         if (chunk.type === 'normal') {
+                            // BATAS KETAT 6 ANGKA PER-X
                             if ((bd.xCountsNormal[maxTake] || 0) + chunk.pairsArray.length > 6) validMaxTake = false;
                         }
                         if (validMaxTake) {
@@ -463,7 +475,8 @@
                                 let foundValid = false;
                                 for (let subT = maxTake; subT >= step; subT -= step) {
                                     let testProposed = currentAlloc + subT;
-                                    if ((bd.xCountsNormal[testProposed] || 0) + chunk.pairsArray.length <= 10) {
+                                    // BATAS KETAT 6 ANGKA PER-X
+                                    if ((bd.xCountsNormal[testProposed] || 0) + chunk.pairsArray.length <= 6) {
                                         maxTake = subT;
                                         proposedX = testProposed;
                                         foundValid = true;
@@ -487,6 +500,8 @@
                         bd.currentCost += (chunk.pairsArray.length * allocX); 
                         if (chunk.type === 'normal') {
                             bd.xCountsNormal[allocX] = (bd.xCountsNormal[allocX] || 0) + chunk.pairsArray.length;
+                        } else if (chunk.type === 'bb') {
+                            bd.bbCount += 1;
                         }
                     }
                 }
@@ -542,11 +557,14 @@
 
         let digits = ['0','1','2','3','4','5','6','7','8','9'];
         
-        function extractBB(k) {
+        // LOGIKA BARU: Ekstraksi Terbatas untuk BB 4 dan BB 3
+        function extractBBLimited(k, limit) {
             let combos = getCombinations(digits, k);
             combos = shuffleArray(combos); 
+            let extractedCount = 0;
             
             for(let c of combos) {
+                if (limit && extractedCount >= limit) break;
                 let perms = [];
                 for(let i=0; i<k; i++) {
                     for(let j=0; j<k; j++) {
@@ -556,13 +574,15 @@
                 if(perms.length > 0 && perms.every(p => pairSet.has(p))) {
                     chunks.push({ type: 'bb', digits: c.join(''), pairsArray: perms });
                     perms.forEach(p => pairSet.delete(p)); 
+                    extractedCount++;
                 }
             }
         }
         
-        // Memastikan BB 5 & 4 terekstrak lebih dulu dengan sempurna jika ada kombinasinya
-        extractBB(5); 
-        extractBB(4); 
+        // Ekstrak maksimal dua BB 4-angka
+        extractBBLimited(4, 2); 
+        // Ekstrak BB 3-angka sebanyak mungkin
+        extractBBLimited(3, 999); 
 
         var remainingPairs = Array.from(pairSet);
         var visited = new Set();
@@ -586,13 +606,13 @@
         let bestResult = null;
         let lowestScore = Infinity;
 
-        // Auto simulasi dilatar belakang untuk mencari hasil teradil tanpa sisa
         for (let sim = 0; sim < 5000; sim++) {
             let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
             
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
             let variance = 0;
             let badSplitsPenalty = 0;
+            let noBDPenalty = 0;
             
             if (activeBDs.length > 0) {
                 let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
@@ -600,7 +620,11 @@
                 variance = maxPairs - minPairs;
             }
 
-            currentRun.bds.forEach(bd => {
+            activeBDs.forEach(bd => {
+                // Memberi hukuman jika ada BD yang aktif tapi tidak kebagian satupun BB
+                if (bd.bbCount === 0) {
+                    noBDPenalty += 500000;
+                }
                 bd.blocks.forEach(bl => {
                     if (bl.xVal < targetMinX && targetX >= targetMinX) {
                         badSplitsPenalty += (targetMinX - bl.xVal) * 10000; 
@@ -608,13 +632,15 @@
                 });
             });
 
-            let score = (currentRun.missingTotal * 1000000) + badSplitsPenalty + variance;
+            // Kalkulasi skor. Makin rendah makin bagus
+            let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance;
 
             if (score < lowestScore) {
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            if (score === 0) break; 
+            // Auto Stop jika ketemu hasil 0 sisa dan setiap BD dapat minimal 1 BB
+            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && badSplitsPenalty === 0 && variance === 0)) break; 
         }
 
         let bds = bestResult.bds;
@@ -664,6 +690,7 @@
                     } else {
                         let added = false;
                         for (let i = 0; i < normalGroups.length; i++) {
+                            // PEMBATASAN MENGGUMPAL (6 ANGKA PER BARIS)
                             if (normalGroups[i].xVal === bl.xVal && (normalGroups[i].pairs.length + bl.chunkData.pairsArray.length) <= 6) {
                                 normalGroups[i].pairs.push(...bl.chunkData.pairsArray);
                                 added = true;
@@ -737,6 +764,7 @@
                 } else {
                     let added = false;
                     for (let i = 0; i < leftoverNormalGroups.length; i++) {
+                        // PEMBATASAN MENGGUMPAL (6 ANGKA PER BARIS)
                         if (leftoverNormalGroups[i].xVal === l.missing && (leftoverNormalGroups[i].pairs.length + l.chunkData.pairsArray.length) <= 6) {
                             leftoverNormalGroups[i].pairs.push(...l.chunkData.pairsArray);
                             added = true;
