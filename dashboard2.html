@@ -644,153 +644,162 @@
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && variance <= 2)) break;
+            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && badSplitsPenalty === 0 && variance === 0)) break; 
         }
 
-        var bds = bestResult.bds;
-        var leftovers = bestResult.leftovers;
+        let bds = bestResult.bds;
+        let leftovers = bestResult.leftovers;
+        let hasError = bestResult.missingTotal > 0;
 
         resultsDiv.innerHTML = '';
-        globalWaText = '';
+        statusDiv.innerHTML = '';
+        globalWaText = "";
 
-        if (leftovers.length > 0) {
-            statusDiv.innerHTML = '<div class="status-bar status-error">TIDAK SEMUA ANGKA MASUK (Kapasitas BD Kurang / Syarat Terlalu Ketat)</div>';
-            statusDiv.innerHTML += `
-                <div class="tips-box">
-                    <h3>⚠️ Solusi Angka Sisa:</h3>
-                    <ul>
-                        <li>Turunkan nilai <strong>Min X</strong> (Misal: dari 10 ke 5 atau 1).</li>
-                        <li>Naikkan <strong>Max Line</strong> atau <strong>Max X</strong> pada pengaturan BD.</li>
-                        <li>Ubah Aturan menjadi <strong>Acak Bebas</strong>.</li>
-                        <li>Tambah <strong>Jumlah BD</strong>.</li>
-                    </ul>
-                </div>
-            `;
+        if (hasError) {
+            let activeBDList = [];
+            for(let i=1; i<=personCount; i++) activeBDList.push(i);
+            let strActiveBD = activeBDList.join('/');
+            
+            let nextBDs = [];
+            for(let i = personCount + 1; i <= 10; i++) nextBDs.push(i);
+            let suggestTambahBD = nextBDs.length > 0 
+                ? `Tambah BD jadi <strong>${nextBDs.join('/')}</strong>`
+                : `Tambah jumlah BD (saat ini sudah maksimal 10 BD)`;
+
+            let tipsHTML = `
+            <div class="tips-box">
+                <h3>💡 Solusi Mengatasi Sisa Angka:</h3>
+                <ul>
+                    <li>Naikkan <strong>Max X</strong> (atau Max Line) pada BD ${strActiveBD}</li>
+                    <li>Kecilkan <strong>Min X</strong></li>
+                    <li>${suggestTambahBD}</li>
+                </ul>
+            </div>`;
+            
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas kapasitas penuh)</div>` + tipsHTML;
         } else {
-            statusDiv.innerHTML = '<div class="status-bar status-success">✅ SEMUA ANGKA BERHASIL DIDISTRIBUSIKAN</div>';
+            statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
         }
+        
+        btnWa.style.display = "flex";
 
-        bds.forEach(function(bd) {
-            if (bd.blocks.length === 0) return;
-            
-            var personHtml = `
-            <div class="person-section">
-                <div class="header-result">
-                    <div class="title-box">
-                        <div class="person-title">${bd.name}</div>
-                        <div class="total-box">Total Line: <span>${bd.currentPairs}</span> | Cost: <span>${bd.currentCost}</span></div>
-                    </div>
-                    <button class="btn-paste" onclick="copyWaText('${bd.id}')">📋 SALIN</button>
-                </div>
-            `;
-            
-            var normalGroups = [];
-            var bbLines = [];
-            var waText = `*${bd.name.toUpperCase()}*\n`; 
-
-            bd.blocks.forEach(function(bl) {
-                if (bl.chunkData.type === 'bb') {
-                    bbLines.push({ type: 'bb', text: bl.chunkData.digits + ' bb x' + bl.xVal });
-                } else {
-                    let added = false;
-                    for (let i = 0; i < normalGroups.length; i++) {
-                        if (normalGroups[i].xVal === bl.xVal && (normalGroups[i].pairs.length + bl.chunkData.pairsArray.length) <= 6) {
-                            normalGroups[i].pairs.push(...bl.chunkData.pairsArray);
-                            added = true;
-                            break;
+        bds.forEach(bd => {
+            if (bd.blocks.length > 0) {
+                var normalGroups = []; 
+                var bbLines = [];
+                
+                bd.blocks.forEach(bl => {
+                    if (bl.chunkData.type === 'bb') {
+                        bbLines.push({ type: 'bb', text: bl.chunkData.digits + ' bb x' + bl.xVal });
+                    } else {
+                        let added = false;
+                        for (let i = 0; i < normalGroups.length; i++) {
+                            if (normalGroups[i].xVal === bl.xVal && (normalGroups[i].pairs.length + bl.chunkData.pairsArray.length) <= 6) {
+                                normalGroups[i].pairs.push(...bl.chunkData.pairsArray);
+                                added = true;
+                                break;
+                            }
+                        }
+                        if (!added) {
+                            normalGroups.push({ xVal: bl.xVal, pairs: [...bl.chunkData.pairsArray] });
                         }
                     }
-                    if (!added) {
-                        normalGroups.push({ xVal: bl.xVal, pairs: [...bl.chunkData.pairsArray] });
-                    }
-                }
-            });
+                });
 
-            bbLines.forEach(function(item) {
-                var parts = item.text.split('x');
-                personHtml += `
-                <div class="group-block">
-                    <div class="group-text">${parts[0].trim()} <span class="multiplier-text">x${parts[1]}</span></div>
-                </div>`;
-                waText += `${item.text}\n`;
-            });
-            
-            normalGroups.forEach(function(g) {
-                let lineString = g.pairs.join('.');
-                personHtml += `
-                <div class="group-block">
-                    <div class="group-text">${lineString} <span class="multiplier-text">x${g.xVal}</span></div>
-                </div>`;
-                waText += `${lineString} x${g.xVal}\n`;
-            });
+                normalGroups = shuffleArray(normalGroups);
 
-            personHtml += `</div>`;
-            resultsDiv.innerHTML += personHtml;
-            
-            var hiddenText = document.createElement('textarea');
-            hiddenText.id = 'waText_' + bd.id;
-            hiddenText.style.display = 'none';
-            hiddenText.value = waText;
-            document.body.appendChild(hiddenText);
+                var totalCostDiskon = bd.currentCost * 0.71; 
+                var bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
+                
+                bbLines.forEach(item => {
+                    bdText += `${item.text}\n`;
+                });
+                
+                normalGroups.forEach(g => {
+                    bdText += `${g.pairs.join('.')} x${g.xVal}\n`;
+                });
+                
+                bdText += `*Total : ${totalCostDiskon.toFixed(2)}*\n\n`;
+                globalWaText += bdText;
 
-            globalWaText += waText + `\n\n`;
+                var html = `
+                    <div class="person-section">
+                        <div class="header-result">
+                            <div class="title-box" style="width:100%;">
+                                <div class="person-title">${bd.name} <span style="font-size:13px; font-weight:normal; color:var(--text-muted);">(${bd.currentPairs} Line)</span></div>
+                                <div class="total-box">Total: ${bd.currentCost} | -29%: <span>${totalCostDiskon.toFixed(2)}</span></div>
+                            </div>
+                        </div>`;
+                
+                bbLines.forEach(item => {
+                    var parts = item.text.split('x'); 
+                    html += `
+                        <div class="group-block">
+                            <div class="group-text">${parts[0].trim()} <span class="multiplier-text">x${parts[1]}</span></div>
+                        </div>`;
+                });
+
+                normalGroups.forEach(g => {
+                    let lineString = g.pairs.join('.');
+                    html += `
+                        <div class="group-block">
+                            <div class="group-text">${lineString} <span class="multiplier-text">x${g.xVal}</span></div>
+                        </div>`;
+                });
+
+                html += `</div>`;
+                resultsDiv.innerHTML += html;
+            }
         });
 
-        // BEGIN: Bagian Leftover dengan fitur tambahan user
         if (leftovers.length > 0) {
             var leftoverNormalGroups = [];
             var leftoverBbLines = [];
             var totalLeftover = 0;
             var leftoverPairsCount = 0;
+            
+            leftovers.forEach(l => {
+                totalLeftover += (l.chunkData.pairsArray.length * l.missing);
+                leftoverPairsCount += l.chunkData.pairsArray.length;
 
-            leftovers.forEach(item => {
-                var chunk = item.chunkData;
-                var missing = item.missing;
-                
-                totalLeftover += (chunk.pairsArray.length * missing);
-                leftoverPairsCount += chunk.pairsArray.length;
-
-                if (chunk.type === 'bb') {
-                    leftoverBbLines.push({ type: 'bb', text: chunk.digits + ' bb x' + missing });
+                if (l.chunkData.type === 'bb') {
+                    leftoverBbLines.push({ type: 'bb', text: l.chunkData.digits + ' bb x' + l.missing });
                 } else {
                     let added = false;
                     for (let i = 0; i < leftoverNormalGroups.length; i++) {
-                        if (leftoverNormalGroups[i].xVal === missing && (leftoverNormalGroups[i].pairs.length + chunk.pairsArray.length) <= 6) {
-                            leftoverNormalGroups[i].pairs.push(...chunk.pairsArray);
+                        if (leftoverNormalGroups[i].xVal === l.missing && (leftoverNormalGroups[i].pairs.length + l.chunkData.pairsArray.length) <= 6) {
+                            leftoverNormalGroups[i].pairs.push(...l.chunkData.pairsArray);
                             added = true;
                             break;
                         }
                     }
                     if (!added) {
-                        leftoverNormalGroups.push({ xVal: missing, pairs: [...chunk.pairsArray] });
+                        leftoverNormalGroups.push({ xVal: l.missing, pairs: [...l.chunkData.pairsArray] });
                     }
                 }
             });
 
-            // Asumsi diskon, menyesuaikan implementasi dari potongan kode user
-            // Menambahkan perhitungan diskon untuk menghindari error totalLeftoverDiskon is not defined.
-            // Anda bisa menyesuaikan nilai pengali diskon ini jika diperlukan.
-            var diskonRate = 0.71; // Misalnya diskon 29% 
-            var totalLeftoverDiskon = totalLeftover * diskonRate; 
+            leftoverNormalGroups = shuffleArray(leftoverNormalGroups);
+            var totalLeftoverDiskon = totalLeftover * 0.71;
+
+            var sisaWaText = `*SISA ANGKA* (${leftoverPairsCount} Line)\n`;
 
             var leftoverHtml = `
-                <div class="person-section leftover-section">
+                <div class="person-section leftover-section" style="grid-column: 1 / -1;">
                     <div class="header-result">
-                        <div class="title-box" style="width:100%;">
+                        <div class="title-box">
                             <div class="person-title" style="color:var(--danger-color);">⚠️ SISA ANGKA <span style="font-size:13px; font-weight:normal; color:var(--text-muted);">(${leftoverPairsCount} Line)</span></div>
-                            <div class="total-box">Total: <span class="danger">${totalLeftover}</span></div>
+                            <div class="total-box" style="border-color:var(--border-color);">Total: ${totalLeftover} | -29%: <span class="danger">${totalLeftoverDiskon.toFixed(2)}</span></div>
                         </div>
                     </div>`;
 
-            var sisaWaText = `*⚠️ SISA ANGKA* (${leftoverPairsCount} Line)\n`;
-
             leftoverBbLines.forEach(item => {
-                var parts = item.text.split('x');
+                sisaWaText += `${item.text}\n`;
+                var parts = item.text.split('x'); 
                 leftoverHtml += `
                     <div class="group-block" style="border-left-color: var(--danger-color);">
                         <div class="group-text">${parts[0].trim()} <span class="multiplier-danger">x${parts[1]}</span></div>
                     </div>`;
-                sisaWaText += `${item.text}\n`;
             });
 
             leftoverNormalGroups.forEach(g => {
@@ -808,23 +817,8 @@
             leftoverHtml += `</div>`;
             resultsDiv.innerHTML += leftoverHtml;
         }
-        // END: Bagian Leftover
-
-        btnWa.style.display = 'flex';
     }
 
-    function copyWaText(bdId) {
-        var textArea = document.getElementById('waText_' + bdId);
-        if(textArea) {
-            textArea.style.display = 'block';
-            textArea.select();
-            document.execCommand('copy');
-            textArea.style.display = 'none';
-            alert('Teks berhasil disalin ke clipboard!');
-        }
-    }
-
-    // BEGIN: Tambahan onload dan PWA dari User
     window.onload = function() {
         document.getElementById('rawInput').value = '';
         generatePeopleConfig();
@@ -861,8 +855,6 @@
     link.rel = 'manifest';
     link.href = URL.createObjectURL(manifestBlob);
     document.head.appendChild(link);
-    // END: Tambahan onload dan PWA dari User
-
 </script>
 
 </body>
