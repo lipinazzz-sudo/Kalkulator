@@ -355,7 +355,7 @@
             row.innerHTML = 
                 '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
                 '<input type="number" id="maxBlocks_' + i + '" value="20" placeholder="Max Line" min="1">' +
-                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">'; // Default Max X 50
+                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">'; 
             container.appendChild(row);
         }
     }
@@ -385,14 +385,13 @@
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: [],
-            xCounts: {}, // Menggunakan tracker tunggal untuk gabungan BB dan Normal
+            xCounts: {}, 
             bbCount: 0 
         }));
         
         let leftovers = [];
         let missingTotal = 0;
         
-        // Aturan step baru (10, 5, 1)
         let step = 1;
         if (mathRule === 10) step = 10;
         else if (mathRule === 5) step = 5;
@@ -405,13 +404,18 @@
             if (eligibleBDs.length > 0) {
                 let shuffledBDs = [...eligibleBDs];
                 
+                // PERBAIKAN SARAN 2: Prioritaskan BD dengan Cost & Line terkecil secara mutlak, hilangkan math.random berlebih
                 if (chunk.type === 'bb') {
                     shuffledBDs.sort((a,b) => {
                         if (a.bbCount !== b.bbCount) return a.bbCount - b.bbCount;
-                        return (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5);
+                        if (a.currentCost !== b.currentCost) return a.currentCost - b.currentCost;
+                        return a.currentPairs - b.currentPairs;
                     });
                 } else {
-                    shuffledBDs.sort((a,b) => (a.currentPairs + Math.random()*5) - (b.currentPairs + Math.random()*5));
+                    shuffledBDs.sort((a,b) => {
+                        if (a.currentCost !== b.currentCost) return a.currentCost - b.currentCost;
+                        return a.currentPairs - b.currentPairs;
+                    });
                 }
 
                 let allocation = new Map();
@@ -434,12 +438,9 @@
                     for (let t = minTake; t <= maxTake; t += step) {
                         let rem = remaining - t;
                         if (rem === 0 || rem >= minTake) {
-                            
                             let curCount = bd.xCounts[t] || 0;
-                            // Jika slot X sudah ada isinya, gabungan tidak boleh > 6.
-                            // (Tapi mengizinkan BB berukuran besar masuk ke slot yg masih 0/kosong penuh).
+                            // ATURAN 3 (Batas maksimal 6) TETAP DIPERTAHANKAN
                             if (curCount > 0 && curCount + chunk.pairsArray.length > 6) continue;
-                            
                             possibleTakes.push(t);
                         }
                     }
@@ -457,7 +458,6 @@
                         remaining -= takeX;
                     } else if (remaining === maxTake) {
                         let validMaxTake = true;
-                        
                         let curMax = bd.xCounts[maxTake] || 0;
                         if (curMax > 0 && curMax + chunk.pairsArray.length > 6) validMaxTake = false;
                         
@@ -482,7 +482,6 @@
                             let foundValid = false;
                             for (let subT = maxTake; subT >= step; subT -= step) {
                                 let testProposed = currentAlloc + subT;
-                                
                                 let curTest = bd.xCounts[testProposed] || 0;
                                 if (!(curTest > 0 && curTest + chunk.pairsArray.length > 6)) {
                                     maxTake = subT;
@@ -499,6 +498,36 @@
                     }
                 }
 
+                // PERBAIKAN SARAN 4: Sapu bersih/Fallback. Paksa masukan berapapun sisa angka yang ada.
+                if (remaining > 0) {
+                    let sweepBDs = [...eligibleBDs].sort((a,b) => {
+                        let aAlloc = allocation.get(a.id) || 0;
+                        let bAlloc = allocation.get(b.id) || 0;
+                        return (b.maxX - bAlloc) - (a.maxX - aAlloc);
+                    });
+
+                    for (let i = 0; i < sweepBDs.length; i++) {
+                        let bd = sweepBDs[i];
+                        if (remaining <= 0) break;
+
+                        let currentAlloc = allocation.get(bd.id) || 0;
+                        let spaceLeft = bd.maxX - currentAlloc;
+
+                        if (spaceLeft > 0) {
+                            let take = Math.min(remaining, spaceLeft);
+                            let proposedX = currentAlloc + take;
+                            
+                            // Aturan limit 6 tetap dipertahankan
+                            let curTest = bd.xCounts[proposedX] || 0;
+                            if (!(curTest > 0 && curTest + chunk.pairsArray.length > 6)) {
+                                allocation.set(bd.id, proposedX);
+                                remaining -= take;
+                            }
+                        }
+                    }
+                }
+
+                // Proses memasukkan hasil alokasi ke block
                 for (let i = 0; i < eligibleBDs.length; i++) {
                     let bd = eligibleBDs[i];
                     let allocX = allocation.get(bd.id) || 0;
@@ -507,7 +536,6 @@
                         bd.currentPairs += chunk.pairsArray.length;
                         bd.currentCost += (chunk.pairsArray.length * allocX); 
                         
-                        // Menambahkan angka ke slot X, berlaku untuk BB & Normal
                         bd.xCounts[allocX] = (bd.xCounts[allocX] || 0) + chunk.pairsArray.length;
                         
                         if (chunk.type === 'bb') {
@@ -618,13 +646,20 @@
             
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
             let variance = 0;
+            let costVariance = 0; // Tambahan variabel untuk Saran 1
             let badSplitsPenalty = 0;
             let noBDPenalty = 0;
             
             if (activeBDs.length > 0) {
                 let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
                 let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
-                variance = maxPairs - minPairs;
+                
+                // PERBAIKAN SARAN 1: Hitung juga selisih nominal/omset antar BD
+                let maxCost = Math.max(...activeBDs.map(b => b.currentCost));
+                let minCost = Math.min(...activeBDs.map(b => b.currentCost));
+                
+                variance = (maxPairs - minPairs) * 100; // Naikkan bobot keseimbangan line
+                costVariance = (maxCost - minCost);     // Hitung gap nominal
             }
 
             activeBDs.forEach(bd => {
@@ -638,13 +673,14 @@
                 });
             });
 
-            let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance;
+            // PERBAIKAN SARAN 1: Masukkan costVariance ke dalam penilaian akhir simulasi terbaik
+            let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance + costVariance;
 
             if (score < lowestScore) {
                 lowestScore = score;
                 bestResult = currentRun;
             }
-            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && badSplitsPenalty === 0 && variance === 0)) break; 
+            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && badSplitsPenalty === 0 && variance === 0 && costVariance <= 50)) break; 
         }
 
         let bds = bestResult.bds;
