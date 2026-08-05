@@ -298,10 +298,13 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn-execute" onclick="prosesAngka()">Prosses</button>
-                <button class="btn-execute" onclick="ringkasBB()" style="background-color: #9b59b6; padding: 14px 10px; max-width: 80px;">BB</button>
-                <button class="btn-execute" onclick="clearAllFields()" style="background-color: #64748b; padding: 14px 10px; max-width: 110px;">🗑️ Clear</button>
+            <!-- TOMBOL BB DITAMBAHKAN DI SINI -->
+            <div style="display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;">
+                <button class="btn-execute" onclick="prosesAngka()" style="flex: 1; min-width: 100px;">Prosses</button>
+                <button class="btn-execute" onclick="ringkasBB(4)" style="background-color: #9b59b6; padding: 14px 10px; flex: 1; min-width: 60px;">BB 4</button>
+                <button class="btn-execute" onclick="ringkasBB(5)" style="background-color: #8e44ad; padding: 14px 10px; flex: 1; min-width: 60px;">BB 5</button>
+                <button class="btn-execute" onclick="ringkasBB(6)" style="background-color: #2980b9; padding: 14px 10px; flex: 1; min-width: 60px;">BB 6</button>
+                <button class="btn-execute" onclick="clearAllFields()" style="background-color: #64748b; padding: 14px 10px; flex: 1; min-width: 90px;">🗑️ Clear</button>
             </div>
         </div>
     </div>
@@ -457,7 +460,8 @@
         return result;
     }
 
-  function ringkasBB() {
+  // FUNGSI DIUBAH AGAR BISA MENERIMA PARAMETER 4, 5, atau 6
+  function ringkasBB(bbLength = 4) {
     const outputTextArea = document.getElementById('outputData');
     let val = outputTextArea.value;
     if (!val) {
@@ -479,14 +483,14 @@
     };
     f('', digits);
     
-    // Hanya ambil kombinasi 4 digit angka
-    subsets = subsets.filter(s => s.length === 4);
+    // Hanya ambil kombinasi sejumlah bbLength (4, 5, atau 6 digit angka)
+    subsets = subsets.filter(s => s.length === bbLength);
 
-    // 2. Kumpulkan SEMUA kandidat BB 4-angka yang angkanya 100% lengkap di daftar
+    // 2. Kumpulkan SEMUA kandidat BB yang angkanya 100% lengkap di daftar
     let validSubsets = subsets.filter(subset => {
         let perms = [];
-        for(let i=0; i<4; i++) {
-            for(let j=0; j<4; j++) {
+        for(let i=0; i<bbLength; i++) {
+            for(let j=0; j<bbLength; j++) {
                 if(i !== j) perms.push(subset[i]+subset[j]);
             }
         }
@@ -505,8 +509,8 @@
     
     for (let subset of validSubsets) {
         let perms = [];
-        for(let i=0; i<4; i++) {
-            for(let j=0; j<4; j++) {
+        for(let i=0; i<bbLength; i++) {
+            for(let j=0; j<bbLength; j++) {
                 if(i !== j) perms.push(subset[i]+subset[j]);
             }
         }
