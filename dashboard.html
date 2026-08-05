@@ -69,8 +69,7 @@
             border-radius: 8px;       
             box-sizing: border-box;
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            /* FONT SIZE DIUBAH KE 16PX AGAR IOS/IPHONE TIDAK AUTO-ZOOM */
-            font-size: 16px;
+            font-size: 16px; /* Update anti-zoom di iOS */
             background-color: var(--input-bg);
             color: var(--text-color);
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -89,7 +88,7 @@
             resize: vertical;
             height: 180px;
             padding: 10px;
-            font-size: 16px; /* Update anti-zoom */
+            font-size: 16px; 
             letter-spacing: 0.5px;
             line-height: 1.5;
             overflow-y: auto;
@@ -154,7 +153,7 @@
 
         button.btn-copy {
             position: absolute;
-            top: 40px;
+            top: 10px;
             right: 10px;
             background-color: #1e293b;
             color: white;
@@ -245,7 +244,6 @@
                 display: grid;
                 grid-template-columns: 1fr 1.2fr;
             }
-            button.btn-copy { top: 10px; }
             
             /* Sembunyikan tombol navigasi jika di layar besar/PC */
             .floating-nav { display: none; }
@@ -298,7 +296,6 @@
                 </div>
             </div>
 
-            <!-- TOMBOL BB DITAMBAHKAN DI SINI -->
             <div style="display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;">
                 <button class="btn-execute" onclick="prosesAngka()" style="flex: 1; min-width: 100px;">Prosses</button>
                 <button class="btn-execute" onclick="ringkasBB(4)" style="background-color: #9b59b6; padding: 14px 10px; flex: 1; min-width: 60px;">BB 4</button>
@@ -311,9 +308,16 @@
 
     <div class="bottom-layout">
         <div>
-            <label style="font-size: 16px; margin-bottom: 10px;">Hasil Akhir</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <label style="margin: 0; font-size: 16px;">Hasil Akhir / Manual</label>
+                <button onclick="pasteHasilManual()" style="background-color: #1e293b; color: #3b82f6; border: 1px solid #24324d; padding: 4px 10px; font-size: 11px; font-weight: bold; border-radius: 4px; cursor: pointer;">
+                    PASTE
+                </button>
+            </div>
+            
             <div class="output-container">
-                <textarea id="outputData" readonly></textarea>
+                <!-- Atribut "readonly" telah dihapus di sini agar bisa diisi manual -->
+                <textarea id="outputData"></textarea>
                 <button class="btn-copy" onclick="copyHasil()" id="btnCopyText">Copy</button>
             </div>
         </div>
@@ -460,16 +464,14 @@
         return result;
     }
 
-  // FUNGSI DIUBAH AGAR BISA MENERIMA PARAMETER 4, 5, atau 6
   function ringkasBB(bbLength = 4) {
     const outputTextArea = document.getElementById('outputData');
     let val = outputTextArea.value;
     if (!val) {
-        alert("Silakan proses Hasil Akhir terlebih dahulu.");
+        alert("Kolom Hasil Akhir masih kosong. Silakan proses dulu atau isi manual.");
         return;
     }
 
-    // 1. Ambil semua angka 2D dan pastikan tidak ada duplikat
     let angka2D = parseAndExpand(val); 
     angka2D = [...new Set(angka2D)].filter(n => /^\d{2}$/.test(n));
 
@@ -483,10 +485,8 @@
     };
     f('', digits);
     
-    // Hanya ambil kombinasi sejumlah bbLength (4, 5, atau 6 digit angka)
     subsets = subsets.filter(s => s.length === bbLength);
 
-    // 2. Kumpulkan SEMUA kandidat BB yang angkanya 100% lengkap di daftar
     let validSubsets = subsets.filter(subset => {
         let perms = [];
         for(let i=0; i<bbLength; i++) {
@@ -497,13 +497,11 @@
         return perms.every(p => angka2D.includes(p));
     });
 
-    // 3. Acak urutan kandidat BB agar hasil selalu berubah setiap diklik
     for (let i = validSubsets.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [validSubsets[i], validSubsets[j]] = [validSubsets[j], validSubsets[i]];
     }
 
-    // 4. Pilih tepat 2 grup BB yang tidak saling bertabrakan angkanya
     let bbGroups = [];
     let usedPerms = new Set();
     
@@ -515,21 +513,17 @@
             }
         }
         
-        // Cek apakah ada angka pasangan yang sudah terpakai oleh grup BB sebelumnya
         let isOverlap = perms.some(p => usedPerms.has(p));
         
         if (!isOverlap) {
             bbGroups.push(subset + " bb 2a X");
             perms.forEach(p => usedPerms.add(p));
-            // Berhenti secara absolut jika sudah dapat 2 grup BB
             if (bbGroups.length === 2) break; 
         }
     }
     
-    // 5. Hapus semua angka yang sudah masuk grup BB dari daftar utama
     angka2D = angka2D.filter(a => !usedPerms.has(a));
     
-    // 6. FITUR BARU: MENGELOMPOKKAN ANGKA SISA SECARA BERPASANGAN BOLAK-BALIK
     let pairs = [];
     let singles = [];
     let processed = new Set();
@@ -540,7 +534,6 @@
         
         let rev = num[1] + num[0];
         
-        // Angka kembar (seperti 11, 22) otomatis masuk kategori single karena tidak ada pasangan baliknya
         if (num === rev) {
             singles.push(num);
             processed.add(num);
@@ -558,10 +551,8 @@
         }
     }
 
-    // Masukkan ke dalam bentuk blok terstruktur
     let blocks = [];
     for (let p of pairs) {
-        // Acak urutan internal pasangan (bisa besar dulu atau kecil dulu secara random)
         if (Math.random() > 0.5) p = [p[1], p[0]];
         blocks.push({ type: 'pair', data: p });
     }
@@ -569,13 +560,11 @@
         blocks.push({ type: 'single', data: [s] });
     }
     
-    // Acak total susunan seluruh blok agar posisi grup menyebar natural
     for (let i = blocks.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
     }
     
-    // Susun kembali ke dalam baris dengan kapasitas max 6 angka tanpa merusak pasangan
     let finalRows = [];
     let currentRow = [];
     
@@ -587,7 +576,6 @@
             if (spaceLeft >= 2) {
                 currentRow.push(...b.data);
             } else {
-                // Sisa slot di baris tinggal 1, cari angka jomblo/single di antrean depan untuk diselipkan
                 let foundSingleIdx = -1;
                 for (let j = i + 1; j < blocks.length; j++) {
                     if (blocks[j].type === 'single') {
@@ -601,9 +589,8 @@
                     currentRow.push(...singleBlock.data);
                     finalRows.push(currentRow);
                     currentRow = [];
-                    i--; // Ulangi pengecekan blok pasangan saat ini pada baris yang baru
+                    i--; 
                 } else {
-                    // Jika benar-benar kehabisan angka single, terpaksa pasangan ini dipecah antar baris
                     currentRow.push(b.data[0]);
                     finalRows.push(currentRow);
                     currentRow = [b.data[1]];
@@ -622,7 +609,6 @@
         finalRows.push(currentRow);
     }
 
-    // Mapping kembali ke format string baris titik (.)
     let finalOutput = [];
     let barisAngka = [];
     for (let row of finalRows) {
@@ -679,7 +665,7 @@
         outputBerlebih.value = '';
 
         if (!hasilProsesStr || !pembandingStr) {
-            alert("Mohon pastikan Anda sudah memproses 'Hasil Akhir' dan mengisi angka di kolom pembanding.");
+            alert("Mohon isi kolom 'Hasil Akhir / Manual' dan kolom 'Angka Pembanding' sebelum menekan Cocokkan.");
             wrapper.style.display = 'none';
             return;
         }
@@ -728,14 +714,14 @@
         }
     }
     
-// FUNGSI REFRESH IFRAME + ANTI CACHE (GITHUB)
+// FUNGSI REFRESH IFRAME + ANTI CACHE
 function refreshIframe() {
     const iframe = document.getElementById('webIframe');
     let urlDasar = iframe.src.split('?')[0];
     iframe.src = urlDasar + '?t=' + new Date().getTime();
 }
 
-// FUNGSI UNTUK REBUT TOGGLE HIDE/UNHIDE ANGKA ASLI
+// FUNGSI TOGGLE HIDE/UNHIDE ANGKA ASLI
 function toggleInputData() {
     const inputArea = document.getElementById('inputData');
     const btnToggle = document.getElementById('btnToggleInput');
@@ -764,14 +750,25 @@ function clearAllFields() {
     document.getElementById('btnCopyText').innerText = "Copy";
 }
 
-// FUNGSI PASTE INSTAN
+// FUNGSI PASTE PEMBANDING
 function pastePembanding() {
     navigator.clipboard.readText()
     .then(text => {
         document.getElementById('inputPembanding').value = text;
     })
     .catch(err => {
-        alert('Gagal membaca clipboard. Pastikan Anda mengizinkan akses clipboard di browser Anda.');
+        alert('Gagal membaca clipboard. Pastikan browser diizinkan.');
+    });
+}
+
+// FUNGSI PASTE HASIL AKHIR MANUAL
+function pasteHasilManual() {
+    navigator.clipboard.readText()
+    .then(text => {
+        document.getElementById('outputData').value = text;
+    })
+    .catch(err => {
+        alert('Gagal membaca clipboard. Pastikan browser diizinkan.');
     });
 }
 </script>
