@@ -404,7 +404,7 @@
             if (eligibleBDs.length > 0) {
                 let shuffledBDs = [...eligibleBDs];
                 
-                // PERBAIKAN SARAN 2: Prioritaskan BD dengan Cost & Line terkecil secara mutlak, hilangkan math.random berlebih
+                // Prioritaskan BD dengan Cost & Line terkecil secara mutlak
                 if (chunk.type === 'bb') {
                     shuffledBDs.sort((a,b) => {
                         if (a.bbCount !== b.bbCount) return a.bbCount - b.bbCount;
@@ -439,7 +439,7 @@
                         let rem = remaining - t;
                         if (rem === 0 || rem >= minTake) {
                             let curCount = bd.xCounts[t] || 0;
-                            // ATURAN 3 (Batas maksimal 6) TETAP DIPERTAHANKAN
+                            // Batas maksimal 6 angka per kelompok pengali tetap dipertahankan
                             if (curCount > 0 && curCount + chunk.pairsArray.length > 6) continue;
                             possibleTakes.push(t);
                         }
@@ -447,13 +447,25 @@
 
                     if (possibleTakes.length > 0) {
                         let takeX;
-                        if (Math.random() > 0.3) {
-                            takeX = possibleTakes[possibleTakes.length - 1]; 
+                        // LOGIKA BARU: BALANCED SPLITTING (Prioritaskan Pemecahan Rasio Tengah, misal 30:30 atau 40:20)
+                        if (possibleTakes.includes(remaining)) {
+                            // Jika BD bisa menampung seluruh sisa, ambil semua untuk menghemat kapasitas Line
+                            takeX = remaining;
                         } else {
-                            let halfIndex = Math.floor(possibleTakes.length / 2);
-                            let upperHalf = possibleTakes.slice(halfIndex); 
-                            takeX = upperHalf[Math.floor(Math.random() * upperHalf.length)];
+                            // Jika harus dipecah, cari potongan yang paling mendekati pembagian 50%
+                            let idealSplit = remaining / 2;
+                            possibleTakes.sort((a, b) => Math.abs(a - idealSplit) - Math.abs(b - idealSplit));
+                            
+                            // Beri sedikit variasi acak agar sistem bisa mengeksplorasi kombinasi jika jalan buntu
+                            if (possibleTakes.length > 1 && Math.random() > 0.3) {
+                                takeX = possibleTakes[0]; // Prioritas 1: Paling mendekati tengah (e.g. 30)
+                            } else if (possibleTakes.length > 1) {
+                                takeX = possibleTakes[1]; // Prioritas 2: Tengah kedua (e.g. 40 atau 20)
+                            } else {
+                                takeX = possibleTakes[0];
+                            }
                         }
+                        
                         allocation.set(bd.id, takeX);
                         remaining -= takeX;
                     } else if (remaining === maxTake) {
@@ -498,7 +510,7 @@
                     }
                 }
 
-                // PERBAIKAN SARAN 4: Sapu bersih/Fallback. Paksa masukan berapapun sisa angka yang ada.
+                // FITUR SAPU BERSIH: Paksa masukan berapapun sisa angka yang ada jika BD masih muat
                 if (remaining > 0) {
                     let sweepBDs = [...eligibleBDs].sort((a,b) => {
                         let aAlloc = allocation.get(a.id) || 0;
@@ -517,7 +529,6 @@
                             let take = Math.min(remaining, spaceLeft);
                             let proposedX = currentAlloc + take;
                             
-                            // Aturan limit 6 tetap dipertahankan
                             let curTest = bd.xCounts[proposedX] || 0;
                             if (!(curTest > 0 && curTest + chunk.pairsArray.length > 6)) {
                                 allocation.set(bd.id, proposedX);
@@ -527,7 +538,6 @@
                     }
                 }
 
-                // Proses memasukkan hasil alokasi ke block
                 for (let i = 0; i < eligibleBDs.length; i++) {
                     let bd = eligibleBDs[i];
                     let allocX = allocation.get(bd.id) || 0;
@@ -646,7 +656,7 @@
             
             let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
             let variance = 0;
-            let costVariance = 0; // Tambahan variabel untuk Saran 1
+            let costVariance = 0; 
             let badSplitsPenalty = 0;
             let noBDPenalty = 0;
             
@@ -654,17 +664,17 @@
                 let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
                 let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
                 
-                // PERBAIKAN SARAN 1: Hitung juga selisih nominal/omset antar BD
+                // Hitung selisih nominal/omset antar BD agar pencarian lebih seimbang
                 let maxCost = Math.max(...activeBDs.map(b => b.currentCost));
                 let minCost = Math.min(...activeBDs.map(b => b.currentCost));
                 
-                variance = (maxPairs - minPairs) * 100; // Naikkan bobot keseimbangan line
-                costVariance = (maxCost - minCost);     // Hitung gap nominal
+                variance = (maxPairs - minPairs) * 100; 
+                costVariance = (maxCost - minCost);     
             }
 
             activeBDs.forEach(bd => {
                 if (bd.bbCount === 0) {
-                    noBDPenalty += 500000;
+                    noBDPenalty += 50000000; // Penalti Dinaikkan 50 Juta agar mutlak wajib BB
                 }
                 bd.blocks.forEach(bl => {
                     if (bl.xVal < targetMinX && targetX >= targetMinX) {
@@ -673,7 +683,7 @@
                 });
             });
 
-            // PERBAIKAN SARAN 1: Masukkan costVariance ke dalam penilaian akhir simulasi terbaik
+            // costVariance masuk ke dalam penilaian akhir simulasi terbaik
             let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance + costVariance;
 
             if (score < lowestScore) {
