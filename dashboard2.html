@@ -860,12 +860,66 @@
         generatePeopleConfig();
     };
 
-    if ('serviceWorker' in navigator) {
+ if ('serviceWorker' in navigator) {
+        // Mendapatkan URL file saat ini secara dinamis untuk di-cache
+        const pageUrl = window.location.href.split('?')[0]; 
+        
         const swCode = `
-            self.addEventListener('install', (e) => { self.skipWaiting(); });
-            self.addEventListener('activate', (e) => { self.clients.claim(); });
+            const CACHE_NAME = 'splitter-pro-v2';
+            const APP_URL = '${pageUrl}';
+            
+            // FASE INSTALL: Simpan file HTML ke dalam cache HP/PC
+            self.addEventListener('install', (e) => { 
+                self.skipWaiting();
+                e.waitUntil(
+                    caches.open(CACHE_NAME).then((cache) => {
+                        return cache.add(APP_URL); 
+                    }).catch(err => console.log('Gagal cache:', err))
+                );
+            });
+
+            // FASE ACTIVATE: Bersihkan sisa cache versi lama jika ada pembaruan
+            self.addEventListener('activate', (e) => { 
+                self.clients.claim(); 
+                e.waitUntil(
+                    caches.keys().then((cacheNames) => {
+                        return Promise.all(
+                            cacheNames.map((cache) => {
+                                if (cache !== CACHE_NAME) {
+                                    return caches.delete(cache);
+                                }
+                            })
+                        );
+                    })
+                );
+            });
+
+            // FASE FETCH (STRATEGI NETWORK-FIRST): 
             self.addEventListener('fetch', (e) => {
-                e.respondWith(fetch(e.request).catch(() => new Response('Offline mode')));
+                e.respondWith(
+                    fetch(e.request)
+                    .then((response) => {
+                        // 1. Jika HP sedang Online: Ambil dari internet & perbarui Cache agar selalu up-to-date
+                        if (response && response.status === 200 && response.type === 'basic') {
+                            const responseToCache = response.clone();
+                            caches.open(CACHE_NAME).then((cache) => {
+                                cache.put(e.request, responseToCache);
+                            });
+                        }
+                        return response;
+                    })
+                    .catch(() => {
+                        // 2. Jika HP sedang Offline: Panggil file aplikasi dari dalam Cache!
+                        return caches.match(e.request).then((cachedResponse) => {
+                            if (cachedResponse) return cachedResponse;
+                            
+                            // Fallback jika user melakukan Refresh (Reload) saat sedang offline
+                            if (e.request.mode === 'navigate') {
+                                return caches.match(APP_URL);
+                            }
+                        });
+                    })
+                );
             });
         `;
         const swBlob = new Blob([swCode], {type: 'application/javascript'});
