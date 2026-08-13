@@ -310,7 +310,7 @@
             <div id="peopleConfigList" class="layout-bds"></div>
         </div>
 
-        <button class="btn-execute" id="btnProses" onclick="processAndSplit()">Proses & Distribusi</button>
+        <button class="btn-execute" onclick="processAndSplit()">Proses & Distribusi</button>
     </div>
 
     <div class="main-content">
@@ -346,18 +346,18 @@
     }
 
     function generatePeopleConfig() {
-        const count = parseInt(document.getElementById('personCount').value);
-        const container = document.getElementById('peopleConfigList');
-        let htmlBuffer = '';
-        for (let i = 1; i <= count; i++) {
-            htmlBuffer += `
-            <div class="person-row">
-                <input type="text" id="bdName_${i}" class="person-name-input" value="BD ${i}" title="Edit Nama BD">
-                <input type="number" id="maxBlocks_${i}" value="20" placeholder="Max Line" min="1">
-                <input type="number" id="maxMultiplier_${i}" value="50" placeholder="Max X" min="1">
-            </div>`;
+        var count = parseInt(document.getElementById('personCount').value);
+        var container = document.getElementById('peopleConfigList');
+        container.innerHTML = '';
+        for (var i = 1; i <= count; i++) {
+            var row = document.createElement('div');
+            row.className = 'person-row';
+            row.innerHTML = 
+                '<input type="text" id="bdName_' + i + '" class="person-name-input" value="BD ' + i + '" title="Edit Nama BD">' +
+                '<input type="number" id="maxBlocks_' + i + '" value="20" placeholder="Max Line" min="1">' +
+                '<input type="number" id="maxMultiplier_' + i + '" value="50" placeholder="Max X" min="1">'; 
+            container.appendChild(row);
         }
-        container.innerHTML = htmlBuffer;
     }
 
     function kirimSemuaKeWA() {
@@ -385,350 +385,344 @@
     function runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule) {
         let bds = bdsTemplate.map(bd => ({
             id: bd.id, name: bd.name, maxP: bd.maxP, maxX: bd.maxX, currentPairs: 0, currentCost: 0, blocks: [],
-            xCounts: {}, bbCount: 0 
+            xCounts: {}, 
+            bbCount: 0 
         }));
         
         let leftovers = [];
         let missingTotal = 0;
-        let step = (mathRule === 10) ? 10 : (mathRule === 5 ? 5 : 1);
+        
+        let step = 1;
+        if (mathRule === 10) step = 10;
+        else if (mathRule === 5) step = 5;
 
         for (let c = 0; c < chunks.length; c++) {
             let chunk = chunks[c];
+            let reqX = targetX;
+            let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
-            // PENGKONDISIAN UTAMA: BB DIJAGA 100% UTUH, NORMAL BOLEH DIPELIH
-            if (chunk.type === 'bb') {
-                // BB dipastikan mutlak 100% dari targetX ke salah satu BD yang muat
-                let eligibleBDs = bds.filter(bd => 
-                    (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP && 
-                    targetX <= bd.maxX
-                );
+            if (eligibleBDs.length > 0) {
+                let shuffledBDs = [...eligibleBDs];
+                
+                // PERBAIKAN SARAN 2: Prioritaskan BD dengan Cost & Line terkecil secara mutlak, hilangkan math.random berlebih
+                if (chunk.type === 'bb') {
+                    shuffledBDs.sort((a,b) => {
+                        if (a.bbCount !== b.bbCount) return a.bbCount - b.bbCount;
+                        if (a.currentCost !== b.currentCost) return a.currentCost - b.currentCost;
+                        return a.currentPairs - b.currentPairs;
+                    });
+                } else {
+                    shuffledBDs.sort((a,b) => {
+                        if (a.currentCost !== b.currentCost) return a.currentCost - b.currentCost;
+                        return a.currentPairs - b.currentPairs;
+                    });
+                }
 
-                if (eligibleBDs.length > 0) {
-                    // Prioritaskan BD dengan total cost terkecil untuk menyeimbangkan Omset
-                    eligibleBDs.sort((a, b) => a.currentCost - b.currentCost);
-                    
-                    let placed = false;
-                    for(let bd of eligibleBDs) {
-                        let curCount = bd.xCounts[targetX] || 0;
-                        // Tetap patuhi limit 6 max per X
-                        if (!(curCount > 0 && curCount + chunk.pairsArray.length > 6)) {
-                            bd.blocks.push({ chunkData: chunk, xVal: targetX });
-                            bd.currentPairs += chunk.pairsArray.length;
-                            bd.currentCost += (chunk.pairsArray.length * targetX);
-                            bd.xCounts[targetX] = curCount + chunk.pairsArray.length;
-                            bd.bbCount += 1;
-                            placed = true;
-                            break;
+                let allocation = new Map();
+                
+                let remaining = reqX;
+                let minTake = Math.max(step, targetMinX);
+                minTake = Math.ceil(minTake / step) * step;
+
+                for (let i = 0; i < shuffledBDs.length; i++) {
+                    let bd = shuffledBDs[i];
+                    if (remaining <= 0) break;
+
+                    let spaceLeft = bd.maxX; 
+                    let maxTake = Math.min(remaining, spaceLeft);
+                    maxTake = Math.floor(maxTake / step) * step;
+
+                    if (maxTake < minTake) continue; 
+
+                    let possibleTakes = [];
+                    for (let t = minTake; t <= maxTake; t += step) {
+                        let rem = remaining - t;
+                        if (rem === 0 || rem >= minTake) {
+                            let curCount = bd.xCounts[t] || 0;
+                            // ATURAN 3 (Batas maksimal 6) TETAP DIPERTAHANKAN
+                            if (curCount > 0 && curCount + chunk.pairsArray.length > 6) continue;
+                            possibleTakes.push(t);
                         }
                     }
-                    if (!placed) {
-                        leftovers.push({ chunkData: chunk, missing: targetX });
-                        missingTotal += targetX;
+
+                    if (possibleTakes.length > 0) {
+                        let takeX;
+                        if (Math.random() > 0.3) {
+                            takeX = possibleTakes[possibleTakes.length - 1]; 
+                        } else {
+                            let halfIndex = Math.floor(possibleTakes.length / 2);
+                            let upperHalf = possibleTakes.slice(halfIndex); 
+                            takeX = upperHalf[Math.floor(Math.random() * upperHalf.length)];
+                        }
+                        allocation.set(bd.id, takeX);
+                        remaining -= takeX;
+                    } else if (remaining === maxTake) {
+                        let validMaxTake = true;
+                        let curMax = bd.xCounts[maxTake] || 0;
+                        if (curMax > 0 && curMax + chunk.pairsArray.length > 6) validMaxTake = false;
+                        
+                        if (validMaxTake) {
+                            allocation.set(bd.id, maxTake);
+                            remaining -= maxTake;
+                        }
                     }
-                } else {
-                    leftovers.push({ chunkData: chunk, missing: targetX });
-                    missingTotal += targetX;
                 }
-            } else {
-                // KODE UNTUK ANGKA NORMAL (Bisa di-Split ke beberapa BD untuk menyeimbangkan cost)
-                // MODIFIKASI: Gunakan porsi 60/40 (customReqX), jika tidak ada baru gunakan targetX utuh
-                let reqX = chunk.customReqX !== undefined ? chunk.customReqX : targetX;
-                let eligibleBDs = bds.filter(bd => (bd.currentPairs + chunk.pairsArray.length) <= bd.maxP);
 
-                if (eligibleBDs.length > 0) {
-                    let shuffledBDs = [...eligibleBDs];
-                    // Prioritaskan selalu cost termurah
-                    shuffledBDs.sort((a,b) => a.currentCost - b.currentCost);
-                    
-                    let allocation = new Map();
-                    let remaining = reqX;
-                    let minTake = Math.max(step, targetMinX);
-                    minTake = Math.ceil(minTake / step) * step;
-
-                    for (let i = 0; i < shuffledBDs.length; i++) {
-                        let bd = shuffledBDs[i];
-                        if (remaining <= 0) break;
-
-                        let spaceLeft = bd.maxX; 
+                if (remaining >= step) {
+                    for (let i = 0; i < eligibleBDs.length; i++) {
+                        let bd = eligibleBDs[i];
+                        if (remaining < step) break;
+                        let currentAlloc = allocation.get(bd.id) || 0;
+                        let spaceLeft = bd.maxX - currentAlloc;
                         let maxTake = Math.min(remaining, spaceLeft);
                         maxTake = Math.floor(maxTake / step) * step;
 
-                        if (maxTake < minTake) continue; 
-
-                        let possibleTakes = [];
-                        for (let t = minTake; t <= maxTake; t += step) {
-                            let rem = remaining - t;
-                            if (rem === 0 || rem >= minTake) {
-                                let curCount = bd.xCounts[t] || 0;
-                                if (curCount > 0 && curCount + chunk.pairsArray.length > 6) continue;
-                                possibleTakes.push(t);
-                            }
-                        }
-
-                        if (possibleTakes.length > 0) {
-                            let takeX;
-                            if (Math.random() > 0.4) {
-                                takeX = possibleTakes[possibleTakes.length - 1]; 
-                            } else {
-                                takeX = possibleTakes[Math.floor(Math.random() * possibleTakes.length)];
-                            }
-                            allocation.set(bd.id, takeX);
-                            remaining -= takeX;
-                        } else if (remaining === maxTake) {
-                            let curMax = bd.xCounts[maxTake] || 0;
-                            if (!(curMax > 0 && curMax + chunk.pairsArray.length > 6)) {
-                                allocation.set(bd.id, maxTake);
-                                remaining -= maxTake;
-                            }
-                        }
-                    }
-
-                    // Sweep sisa alokasi angka normal ke BD manapun yang masih punya limit X
-                    if (remaining > 0) {
-                        let sweepBDs = [...eligibleBDs].sort((a,b) => {
-                            let aAlloc = allocation.get(a.id) || 0;
-                            let bAlloc = allocation.get(b.id) || 0;
-                            return (b.maxX - bAlloc) - (a.maxX - aAlloc);
-                        });
-
-                        for (let bd of sweepBDs) {
-                            if (remaining <= 0) break;
-                            let currentAlloc = allocation.get(bd.id) || 0;
-                            let spaceLeft = bd.maxX - currentAlloc;
-
-                            if (spaceLeft > 0) {
-                                let take = Math.min(remaining, spaceLeft);
-                                take = Math.floor(take / step) * step; // Jaga tetap kelipatan
-                                if (take <= 0) continue;
-                                
-                                let proposedX = currentAlloc + take;
-                                let curTest = bd.xCounts[proposedX] || 0;
+                        if (maxTake >= step) {
+                            let proposedX = currentAlloc + maxTake;
+                            let foundValid = false;
+                            for (let subT = maxTake; subT >= step; subT -= step) {
+                                let testProposed = currentAlloc + subT;
+                                let curTest = bd.xCounts[testProposed] || 0;
                                 if (!(curTest > 0 && curTest + chunk.pairsArray.length > 6)) {
-                                    allocation.set(bd.id, proposedX);
-                                    remaining -= take;
+                                    maxTake = subT;
+                                    proposedX = testProposed;
+                                    foundValid = true;
+                                    break;
                                 }
                             }
+                            if (!foundValid) continue;
+                            
+                            allocation.set(bd.id, proposedX);
+                            remaining -= maxTake;
                         }
                     }
-
-                    // Terapkan alokasi blok Normal ke profil BD
-                    for (let bd of eligibleBDs) {
-                        let allocX = allocation.get(bd.id) || 0;
-                        if (allocX > 0) {
-                            bd.blocks.push({ chunkData: chunk, xVal: allocX });
-                            bd.currentPairs += chunk.pairsArray.length;
-                            bd.currentCost += (chunk.pairsArray.length * allocX); 
-                            bd.xCounts[allocX] = (bd.xCounts[allocX] || 0) + chunk.pairsArray.length;
-                        }
-                    }
-                    
-                    if (remaining > 0) {
-                        leftovers.push({ chunkData: chunk, missing: remaining });
-                        missingTotal += remaining;
-                    }
-                } else {
-                    leftovers.push({ chunkData: chunk, missing: reqX });
-                    missingTotal += reqX;
                 }
+
+                // PERBAIKAN SARAN 4: Sapu bersih/Fallback. Paksa masukan berapapun sisa angka yang ada.
+                if (remaining > 0) {
+                    let sweepBDs = [...eligibleBDs].sort((a,b) => {
+                        let aAlloc = allocation.get(a.id) || 0;
+                        let bAlloc = allocation.get(b.id) || 0;
+                        return (b.maxX - bAlloc) - (a.maxX - aAlloc);
+                    });
+
+                    for (let i = 0; i < sweepBDs.length; i++) {
+                        let bd = sweepBDs[i];
+                        if (remaining <= 0) break;
+
+                        let currentAlloc = allocation.get(bd.id) || 0;
+                        let spaceLeft = bd.maxX - currentAlloc;
+
+                        if (spaceLeft > 0) {
+                            let take = Math.min(remaining, spaceLeft);
+                            let proposedX = currentAlloc + take;
+                            
+                            // Aturan limit 6 tetap dipertahankan
+                            let curTest = bd.xCounts[proposedX] || 0;
+                            if (!(curTest > 0 && curTest + chunk.pairsArray.length > 6)) {
+                                allocation.set(bd.id, proposedX);
+                                remaining -= take;
+                            }
+                        }
+                    }
+                }
+
+                // Proses memasukkan hasil alokasi ke block
+                for (let i = 0; i < eligibleBDs.length; i++) {
+                    let bd = eligibleBDs[i];
+                    let allocX = allocation.get(bd.id) || 0;
+                    if (allocX > 0) {
+                        bd.blocks.push({ chunkData: chunk, xVal: allocX });
+                        bd.currentPairs += chunk.pairsArray.length;
+                        bd.currentCost += (chunk.pairsArray.length * allocX); 
+                        
+                        bd.xCounts[allocX] = (bd.xCounts[allocX] || 0) + chunk.pairsArray.length;
+                        
+                        if (chunk.type === 'bb') {
+                            bd.bbCount += 1;
+                        }
+                    }
+                }
+                
+                if (remaining > 0) {
+                    leftovers.push({ chunkData: chunk, missing: remaining });
+                    missingTotal += remaining;
+                }
+
+            } else {
+                leftovers.push({ chunkData: chunk, missing: reqX });
+                missingTotal += reqX;
             }
         }
         return { bds, leftovers, missingTotal };
     }
 
     function processAndSplit() {
-        const rawText = document.getElementById('rawInput').value;
+        var rawText = document.getElementById('rawInput').value;
         if (!rawText || rawText.trim() === '') { alert('Kolom Daftar Angka masih kosong!'); return; }
 
-        const targetX = parseInt(document.getElementById('targetMultiplier').value);
+        var targetX = parseInt(document.getElementById('targetMultiplier').value);
         if (isNaN(targetX) || targetX <= 0) { alert('Isi Total X terlebih dahulu!'); return; }
         
-        const minXInput = parseInt(document.getElementById('minXPerSplit').value);
-        const targetMinX = isNaN(minXInput) || minXInput < 1 ? 1 : minXInput;
+        var minXInput = parseInt(document.getElementById('minXPerSplit').value);
+        var targetMinX = isNaN(minXInput) || minXInput < 1 ? 1 : minXInput;
 
-        const personCount = parseInt(document.getElementById('personCount').value);
-        const mathRule = parseInt(document.getElementById('mathRule').value);
-        const resultsDiv = document.getElementById('results');
-        const statusDiv = document.getElementById('statusContainer');
-        const btnWa = document.getElementById('btnSendWA');
-        const btnProses = document.getElementById('btnProses');
+        var personCount = parseInt(document.getElementById('personCount').value);
+        var mathRule = parseInt(document.getElementById('mathRule').value);
+        var resultsDiv = document.getElementById('results');
+        var statusDiv = document.getElementById('statusContainer');
+        var btnWa = document.getElementById('btnSendWA');
 
-        // --- SETUP PERSENTASE ANGKA NORMAL ---
-        // Anda bisa mengubah angka 0.6 ini: 
-        // 0.6 = (60/40)
-        // 0.5 = (50/50)
-        // 0.7 = (70/30)
-        const ratioUtama = 0.6; 
+        var bdsTemplate = [];
+        for (var i = 1; i <= personCount; i++) {
+            var maxP = parseInt(document.getElementById('maxBlocks_' + i).value);
+            var maxX = parseInt(document.getElementById('maxMultiplier_' + i).value);
+            var bdNameInput = document.getElementById('bdName_' + i).value || ('BD ' + i);
+            
+            var cleanMaxP = isNaN(maxP) || maxP < 1 ? 999999 : maxP;
+            var cleanMaxX = isNaN(maxX) || maxX < 1 ? 999999 : maxX;
+            
+            bdsTemplate.push({
+                id: i, name: bdNameInput, maxP: cleanMaxP, maxX: cleanMaxX
+            });
+        }
+
+        var allPairsRaw = rawText.replace(/[\n\r\s,]+/g, '.').split('.').map(p => p.trim()).filter(p => p.length === 2 && !isNaN(p));
+        allPairsRaw = shuffleArray(allPairsRaw); 
+
+        var pairSet = new Set(allPairsRaw);
+        var chunks = []; 
+
+        let digits = ['0','1','2','3','4','5','6','7','8','9'];
         
-        let stepRule = (mathRule === 10) ? 10 : (mathRule === 5 ? 5 : 1);
-        let normalX1 = Math.round((targetX * ratioUtama) / stepRule) * stepRule;
-        if (normalX1 === 0) normalX1 = stepRule; 
-        let normalX2 = targetX - normalX1;
-        if (normalX2 <= 0) normalX2 = stepRule;
-        // -------------------------------------
+        function extractBBLimited(k, limit) {
+            let combos = getCombinations(digits, k);
+            combos = shuffleArray(combos); 
+            let extractedCount = 0;
+            
+            for(let c of combos) {
+                if (limit && extractedCount >= limit) break;
+                let perms = [];
+                for(let i=0; i<k; i++) {
+                    for(let j=0; j<k; j++) {
+                        if(i!==j) perms.push(c[i]+c[j]);
+                    }
+                }
+                if(perms.length > 0 && perms.every(p => pairSet.has(p))) {
+                    chunks.push({ type: 'bb', digits: c.join(''), pairsArray: perms });
+                    perms.forEach(p => pairSet.delete(p)); 
+                    extractedCount++;
+                }
+            }
+        }
+        
+        extractBBLimited(4, 2); 
+        extractBBLimited(3, 999); 
 
-        btnProses.textContent = "MEMPROSES...";
-        btnProses.style.opacity = "0.7";
+        var remainingPairs = Array.from(pairSet);
+        var visited = new Set();
+        var normalChunks = [];
+        
+        for (var p of remainingPairs) {
+            if (visited.has(p)) continue;
+            var reverse = p[1] + p[0];
+            if (p !== reverse && pairSet.has(reverse)) {
+                normalChunks.push({ type: 'normal', pairsArray: [p, reverse] });
+                visited.add(p); visited.add(reverse);
+            } else {
+                normalChunks.push({ type: 'normal', pairsArray: [p] }); 
+                visited.add(p);
+            }
+        }
 
-        // Gunakan timeout kecil agar UI sempat update status memproses (Mencegah total Freeze UI)
-        setTimeout(() => {
-            const bdsTemplate = [];
-            for (let i = 1; i <= personCount; i++) {
-                let maxP = parseInt(document.getElementById('maxBlocks_' + i).value);
-                let maxX = parseInt(document.getElementById('maxMultiplier_' + i).value);
-                let bdNameInput = document.getElementById('bdName_' + i).value || ('BD ' + i);
+        chunks = chunks.concat(normalChunks);
+        chunks.sort((a, b) => b.pairsArray.length - a.pairsArray.length);
+
+        let bestResult = null;
+        let lowestScore = Infinity;
+
+        for (let sim = 0; sim < 5000; sim++) {
+            let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
+            
+            let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
+            let variance = 0;
+            let costVariance = 0; // Tambahan variabel untuk Saran 1
+            let badSplitsPenalty = 0;
+            let noBDPenalty = 0;
+            
+            if (activeBDs.length > 0) {
+                let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
+                let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
                 
-                bdsTemplate.push({
-                    id: i, name: bdNameInput, 
-                    maxP: isNaN(maxP) || maxP < 1 ? 999999 : maxP, 
-                    maxX: isNaN(maxX) || maxX < 1 ? 999999 : maxX
+                // PERBAIKAN SARAN 1: Hitung juga selisih nominal/omset antar BD
+                let maxCost = Math.max(...activeBDs.map(b => b.currentCost));
+                let minCost = Math.min(...activeBDs.map(b => b.currentCost));
+                
+                variance = (maxPairs - minPairs) * 100; // Naikkan bobot keseimbangan line
+                costVariance = (maxCost - minCost);     // Hitung gap nominal
+            }
+
+            activeBDs.forEach(bd => {
+                if (bd.bbCount === 0) {
+                    noBDPenalty += 500000;
+                }
+                bd.blocks.forEach(bl => {
+                    if (bl.xVal < targetMinX && targetX >= targetMinX) {
+                        badSplitsPenalty += (targetMinX - bl.xVal) * 10000; 
+                    }
                 });
-            }
-
-            // REGEX EKSTRAKSI AMAN (Hanya mengambil blok 2 digit pasti)
-            let cleanText = rawText.replace(/[^0-9]/g, ' '); 
-            let allPairsRaw = cleanText.split(/\s+/).filter(p => p.length === 2);
-            allPairsRaw = shuffleArray(allPairsRaw); 
-
-            const pairSet = new Set(allPairsRaw);
-            let chunks = []; 
-            const digits = ['0','1','2','3','4','5','6','7','8','9'];
-            
-            function extractBBLimited(k, limit) {
-                let combos = getCombinations(digits, k);
-                combos = shuffleArray(combos); 
-                let extractedCount = 0;
-                
-                for(let c of combos) {
-                    if (limit && extractedCount >= limit) break;
-                    let perms = [];
-                    for(let i=0; i<k; i++) {
-                        for(let j=0; j<k; j++) {
-                            if(i!==j) perms.push(c[i]+c[j]);
-                        }
-                    }
-                    if(perms.length > 0 && perms.every(p => pairSet.has(p))) {
-                        chunks.push({ type: 'bb', digits: c.join(''), pairsArray: perms });
-                        perms.forEach(p => pairSet.delete(p)); 
-                        extractedCount++;
-                    }
-                }
-            }
-            
-            extractBBLimited(4, 2); 
-            extractBBLimited(3, 999); 
-
-            const remainingPairs = Array.from(pairSet);
-            const visited = new Set();
-            const normalChunks = [];
-            
-            for (let p of remainingPairs) {
-                if (visited.has(p)) continue;
-                let reverse = p[1] + p[0];
-                
-                // MODIFIKASI: Setiap angka normal otomatis dipecah menjadi 2 chunk (Porsi 1 & Porsi 2)
-                if (p !== reverse && pairSet.has(reverse)) {
-                    normalChunks.push({ type: 'normal', pairsArray: [p, reverse], customReqX: normalX1 });
-                    normalChunks.push({ type: 'normal', pairsArray: [p, reverse], customReqX: normalX2 });
-                    visited.add(p); visited.add(reverse);
-                } else {
-                    normalChunks.push({ type: 'normal', pairsArray: [p], customReqX: normalX1 });
-                    normalChunks.push({ type: 'normal', pairsArray: [p], customReqX: normalX2 }); 
-                    visited.add(p);
-                }
-            }
-
-            chunks = chunks.concat(normalChunks);
-            
-            // PRIORITAS SORTING CHUNK: BB terbesar masuk duluan, agar mengamankan slot BD
-            chunks.sort((a, b) => {
-                if (a.type === 'bb' && b.type !== 'bb') return -1;
-                if (a.type !== 'bb' && b.type === 'bb') return 1;
-                return b.pairsArray.length - a.pairsArray.length;
             });
 
-            let bestResult = null;
-            let lowestScore = Infinity;
+            // PERBAIKAN SARAN 1: Masukkan costVariance ke dalam penilaian akhir simulasi terbaik
+            let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance + costVariance;
 
-            for (let sim = 0; sim < 5000; sim++) {
-                let currentRun = runSimulation(chunks, bdsTemplate, targetX, targetMinX, mathRule);
-                
-                let activeBDs = currentRun.bds.filter(b => b.currentCost > 0);
-                let variance = 0;
-                let costVariance = 0; 
-                let badSplitsPenalty = 0;
-                let noBDPenalty = 0;
-                
-                if (activeBDs.length > 0) {
-                    let maxPairs = Math.max(...activeBDs.map(b => b.currentPairs));
-                    let minPairs = Math.min(...activeBDs.map(b => b.currentPairs));
-                    let maxCost = Math.max(...activeBDs.map(b => b.currentCost));
-                    let minCost = Math.min(...activeBDs.map(b => b.currentCost));
-                    
-                    variance = (maxPairs - minPairs) * 100; 
-                    costVariance = (maxCost - minCost);     
-                }
-
-                activeBDs.forEach(bd => {
-                    if (bd.bbCount === 0) noBDPenalty += 100000; // Penalti karena BD tidak dapat omset BB (agar adil)
-                    bd.blocks.forEach(bl => {
-                        if (bl.xVal < targetMinX && targetX >= targetMinX) {
-                            badSplitsPenalty += (targetMinX - bl.xVal) * 10000; 
-                        }
-                    });
-                });
-
-                let score = (currentRun.missingTotal * 1000000) + noBDPenalty + badSplitsPenalty + variance + costVariance;
-
-                if (score < lowestScore) {
-                    lowestScore = score;
-                    bestResult = currentRun;
-                }
-                if (score === 0 || (currentRun.missingTotal === 0 && badSplitsPenalty === 0 && variance === 0 && costVariance <= 50)) break; 
+            if (score < lowestScore) {
+                lowestScore = score;
+                bestResult = currentRun;
             }
-
-            renderResults(bestResult, personCount);
-            
-            btnProses.textContent = "Proses & Distribusi";
-            btnProses.style.opacity = "1";
-
-        }, 100); 
-    }
-
-    function renderResults(bestResult, personCount) {
-        const resultsDiv = document.getElementById('results');
-        const statusDiv = document.getElementById('statusContainer');
-        const btnWa = document.getElementById('btnSendWA');
+            if (score === 0 || (currentRun.missingTotal === 0 && noBDPenalty === 0 && badSplitsPenalty === 0 && variance === 0 && costVariance <= 50)) break; 
+        }
 
         let bds = bestResult.bds;
         let leftovers = bestResult.leftovers;
         let hasError = bestResult.missingTotal > 0;
-        
-        let finalStatusHtml = '';
-        let finalResultsHtml = '';
+
+        resultsDiv.innerHTML = '';
+        statusDiv.innerHTML = '';
         globalWaText = "";
 
         if (hasError) {
-            let suggestTambahBD = `Tambah kapasitas (Max Line) di BD yang ada, atau tingkatkan Max X.`;
-            finalStatusHtml = `
-            <div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas kapasitas atau limit X penuh)</div>
+            let activeBDList = [];
+            for(let i=1; i<=personCount; i++) activeBDList.push(i);
+            let strActiveBD = activeBDList.join('/');
+            
+            let nextBDs = [];
+            for(let i = personCount + 1; i <= 10; i++) nextBDs.push(i);
+            let suggestTambahBD = nextBDs.length > 0 
+                ? `Tambah BD jadi <strong>${nextBDs.join('/')}</strong>`
+                : `Tambah jumlah BD (saat ini sudah maksimal 10 BD)`;
+
+            let tipsHTML = `
             <div class="tips-box">
                 <h3>💡 Solusi Mengatasi Sisa Angka:</h3>
                 <ul>
-                    <li>Naikkan <strong>Max X</strong> (atau Max Line) pada profil BD</li>
-                    <li>Kecilkan <strong>Min X</strong> atau ubah Aturan menjadi <strong>Acak Bebas</strong></li>
+                    <li>Naikkan <strong>Max X</strong> (atau Max Line) pada BD ${strActiveBD}</li>
+                    <li>Kecilkan <strong>Min X</strong></li>
                     <li>${suggestTambahBD}</li>
                 </ul>
             </div>`;
+            
+            statusDiv.innerHTML = `<div class="status-bar status-error">⚠️ Terdapat sisa angka (Batas kapasitas penuh)</div>` + tipsHTML;
         } else {
-            finalStatusHtml = `<div class="status-bar status-success">✅ Distribusi Selesai dan Seimbang (BB Utuh)</div>`;
+            statusDiv.innerHTML = `<div class="status-bar status-success">✅ Distribusi Selesai dan Sempurna</div>`;
         }
         
         btnWa.style.display = "flex";
 
         bds.forEach(bd => {
             if (bd.blocks.length > 0) {
-                let normalGroups = []; 
-                let bbLines = [];
+                var normalGroups = []; 
+                var bbLines = [];
                 
                 bd.blocks.forEach(bl => {
                     if (bl.chunkData.type === 'bb') {
@@ -750,16 +744,21 @@
 
                 normalGroups = shuffleArray(normalGroups);
 
-                const totalCostDiskon = bd.currentCost * 0.71; 
-                let bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
+                var totalCostDiskon = bd.currentCost * 0.71; 
+                var bdText = `*${bd.name}* (${bd.currentPairs} Line)\n`;
                 
-                bbLines.forEach(item => { bdText += `${item.text}\n`; });
-                normalGroups.forEach(g => { bdText += `${g.pairs.join('.')} x${g.xVal}\n`; });
+                bbLines.forEach(item => {
+                    bdText += `${item.text}\n`;
+                });
+                
+                normalGroups.forEach(g => {
+                    bdText += `${g.pairs.join('.')} x${g.xVal}\n`;
+                });
+                
                 bdText += `*Total : ${totalCostDiskon.toFixed(2)}*\n\n`;
-                
                 globalWaText += bdText;
 
-                let html = `
+                var html = `
                     <div class="person-section">
                         <div class="header-result">
                             <div class="title-box" style="width:100%;">
@@ -769,7 +768,7 @@
                         </div>`;
                 
                 bbLines.forEach(item => {
-                    let parts = item.text.split('x'); 
+                    var parts = item.text.split('x'); 
                     html += `
                         <div class="group-block">
                             <div class="group-text">${parts[0].trim()} <span class="multiplier-text">x${parts[1]}</span></div>
@@ -785,15 +784,15 @@
                 });
 
                 html += `</div>`;
-                finalResultsHtml += html;
+                resultsDiv.innerHTML += html;
             }
         });
 
         if (leftovers.length > 0) {
-            let leftoverNormalGroups = [];
-            let leftoverBbLines = [];
-            let totalLeftover = 0;
-            let leftoverPairsCount = 0;
+            var leftoverNormalGroups = [];
+            var leftoverBbLines = [];
+            var totalLeftover = 0;
+            var leftoverPairsCount = 0;
             
             leftovers.forEach(l => {
                 totalLeftover += (l.chunkData.pairsArray.length * l.missing);
@@ -817,10 +816,11 @@
             });
 
             leftoverNormalGroups = shuffleArray(leftoverNormalGroups);
-            const totalLeftoverDiskon = totalLeftover * 0.71;
-            let sisaWaText = `*SISA ANGKA* (${leftoverPairsCount} Line)\n`;
+            var totalLeftoverDiskon = totalLeftover * 0.71;
 
-            let leftoverHtml = `
+            var sisaWaText = `*SISA ANGKA* (${leftoverPairsCount} Line)\n`;
+
+            var leftoverHtml = `
                 <div class="person-section leftover-section" style="grid-column: 1 / -1;">
                     <div class="header-result">
                         <div class="title-box">
@@ -831,7 +831,7 @@
 
             leftoverBbLines.forEach(item => {
                 sisaWaText += `${item.text}\n`;
-                let parts = item.text.split('x'); 
+                var parts = item.text.split('x'); 
                 leftoverHtml += `
                     <div class="group-block" style="border-left-color: var(--danger-color);">
                         <div class="group-text">${parts[0].trim()} <span class="multiplier-danger">x${parts[1]}</span></div>
@@ -849,13 +849,10 @@
 
             sisaWaText += `*Total : ${totalLeftoverDiskon.toFixed(2)}*\n\n`;
             globalWaText += sisaWaText;
-            leftoverHtml += `</div>`;
-            
-            finalResultsHtml += leftoverHtml;
-        }
 
-        statusDiv.innerHTML = finalStatusHtml;
-        resultsDiv.innerHTML = finalResultsHtml;
+            leftoverHtml += `</div>`;
+            resultsDiv.innerHTML += leftoverHtml;
+        }
     }
 
     window.onload = function() {
@@ -863,39 +860,91 @@
         generatePeopleConfig();
     };
 
-    if ('serviceWorker' in navigator) {
+ if ('serviceWorker' in navigator) {
+        // Mendapatkan URL file saat ini secara dinamis untuk di-cache
         const pageUrl = window.location.href.split('?')[0]; 
+        
         const swCode = `
-            const CACHE_NAME = 'splitter-pro-v4';
+            const CACHE_NAME = 'splitter-pro-v2';
             const APP_URL = '${pageUrl}';
             
+            // FASE INSTALL: Simpan file HTML ke dalam cache HP/PC
             self.addEventListener('install', (e) => { 
                 self.skipWaiting();
-                e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.add(APP_URL)));
+                e.waitUntil(
+                    caches.open(CACHE_NAME).then((cache) => {
+                        return cache.add(APP_URL); 
+                    }).catch(err => console.log('Gagal cache:', err))
+                );
             });
 
+            // FASE ACTIVATE: Bersihkan sisa cache versi lama jika ada pembaruan
             self.addEventListener('activate', (e) => { 
                 self.clients.claim(); 
-                e.waitUntil(caches.keys().then(cacheNames => Promise.all(
-                    cacheNames.map(cache => { if (cache !== CACHE_NAME) return caches.delete(cache); })
-                )));
+                e.waitUntil(
+                    caches.keys().then((cacheNames) => {
+                        return Promise.all(
+                            cacheNames.map((cache) => {
+                                if (cache !== CACHE_NAME) {
+                                    return caches.delete(cache);
+                                }
+                            })
+                        );
+                    })
+                );
             });
 
+            // FASE FETCH (STRATEGI NETWORK-FIRST): 
             self.addEventListener('fetch', (e) => {
                 e.respondWith(
-                    fetch(e.request).then(response => {
+                    fetch(e.request)
+                    .then((response) => {
+                        // 1. Jika HP sedang Online: Ambil dari internet & perbarui Cache agar selalu up-to-date
                         if (response && response.status === 200 && response.type === 'basic') {
                             const responseToCache = response.clone();
-                            caches.open(CACHE_NAME).then(cache => cache.put(e.request, responseToCache));
+                            caches.open(CACHE_NAME).then((cache) => {
+                                cache.put(e.request, responseToCache);
+                            });
                         }
                         return response;
-                    }).catch(() => caches.match(e.request).then(cached => cached || (e.request.mode === 'navigate' ? caches.match(APP_URL) : null)))
+                    })
+                    .catch(() => {
+                        // 2. Jika HP sedang Offline: Panggil file aplikasi dari dalam Cache!
+                        return caches.match(e.request).then((cachedResponse) => {
+                            if (cachedResponse) return cachedResponse;
+                            
+                            // Fallback jika user melakukan Refresh (Reload) saat sedang offline
+                            if (e.request.mode === 'navigate') {
+                                return caches.match(APP_URL);
+                            }
+                        });
+                    })
                 );
             });
         `;
         const swBlob = new Blob([swCode], {type: 'application/javascript'});
         navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(console.error);
     }
+
+    const manifest = {
+        "name": "Splitter Pro",
+        "short_name": "Splitter",
+        "start_url": window.location.href,
+        "display": "standalone",
+        "background_color": "#0b0f19",
+        "theme_color": "#0b0f19",
+        "icons": [{
+            "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzBiMGYxOSIvPjx0ZXh0IHg9IjUwIiB5PSI2NCIgZm9udC1zaXplPSI0NCIgZmlsbD0iIzNiODJmNiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+U1A8L3RleHQ+PC9zdmc+",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = URL.createObjectURL(manifestBlob);
+    document.head.appendChild(link);
 </script>
 
 </body>
